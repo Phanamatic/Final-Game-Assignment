@@ -3,7 +3,19 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - You
+  - Stop
+  - Baba
+  - Wall
+  - Word
+  - Word_Baba
+  - Word_Is
+  - Word_You
+  - Word_Flag
+  - Word_Win
+  - Flag
+  - Win
   layers:
   - Default
   - TransparentFX
