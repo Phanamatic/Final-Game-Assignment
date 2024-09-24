@@ -16,6 +16,8 @@ TagManager:
   - Word_Win
   - Flag
   - Win
+  - Word_Wall
+  - Word_Stop
   layers:
   - Default
   - TransparentFX
