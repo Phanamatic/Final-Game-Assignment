@@ -4,12 +4,10 @@ public class TagChecker : MonoBehaviour
 {
     void Update()
     {
-        // Check sequences for Baba and Flag
-        CheckSequence("Word_Baba", "Word_Is", "Word_You", "Baba", "You");
-        CheckSequence("Word_Flag", "Word_Is", "Word_Win", "Flag", "Win");
-
-        // Check Wall sequences
-        CheckWallSequences();
+        // Check sequences for Baba and Flag using the same logic as the Wall sequences
+        CheckObjectSequences("Word_Baba", "Word_Is", "Word_You", "Baba", "You");
+        CheckObjectSequences("Word_Flag", "Word_Is", "Word_Win", "Flag", "Win");
+        CheckWallSequences(); // Wall-specific logic
     }
 
     void CheckWallSequences()
@@ -17,7 +15,7 @@ public class TagChecker : MonoBehaviour
         bool wallIsStopFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_Stop", "Wall", "Stop");
         bool wallIsYouFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_You", "Wall", "You");
 
-        // If neither sequence is found, set to untagged
+        // If neither sequence is found, set Wall objects to "Untagged"
         if (!wallIsStopFound && !wallIsYouFound)
         {
             SetParentTagsForAll(false, "Wall", "Untagged");
@@ -33,6 +31,23 @@ public class TagChecker : MonoBehaviour
             {
                 SetParentTagsForAll(true, "Wall", "Stop");
             }
+        }
+    }
+
+    // Check and apply sequence logic for other objects (Baba, Flag, etc.)
+    void CheckObjectSequences(string firstTag, string middleTag, string lastTag, string targetTag, string newParentTag)
+    {
+        bool sequenceFound = CheckSpecificSequence(firstTag, middleTag, lastTag, targetTag, newParentTag);
+
+        // If no sequence is found, set the parent tags to untagged
+        if (!sequenceFound)
+        {
+            SetParentTagsForAll(false, targetTag, "Untagged");
+        }
+        else
+        {
+            // Sequence found, set the parent tag to the newParentTag
+            SetParentTagsForAll(true, targetTag, newParentTag);
         }
     }
 
@@ -99,46 +114,6 @@ public class TagChecker : MonoBehaviour
                     Debug.LogWarning($"The '{childTag}' object does not have a parent.");
                 }
             }
-        }
-    }
-
-    void CheckSequence(string firstTag, string middleTag, string lastTag, string targetTag, string newParentTag)
-    {
-        GameObject[] firstObjects = GameObject.FindGameObjectsWithTag(firstTag);
-        GameObject[] middleObjects = GameObject.FindGameObjectsWithTag(middleTag);
-        GameObject[] lastObjects = GameObject.FindGameObjectsWithTag(lastTag);
-
-        if (firstObjects.Length > 0 && middleObjects.Length > 0 && lastObjects.Length > 0)
-        {
-            bool sequenceFound = false;
-
-            foreach (GameObject first in firstObjects)
-            {
-                foreach (GameObject middle in middleObjects)
-                {
-                    foreach (GameObject last in lastObjects)
-                    {
-                        // Check horizontal or vertical sequence
-                        if ((IsHorizontallyAdjacent(first.transform.position, middle.transform.position) &&
-                             IsHorizontallyAdjacent(middle.transform.position, last.transform.position)) ||
-                            (IsVerticallyAdjacent(first.transform.position, middle.transform.position) &&
-                             IsVerticallyAdjacent(middle.transform.position, last.transform.position)))
-                        {
-                            sequenceFound = true;
-                            break;
-                        }
-                    }
-                    if (sequenceFound) break;
-                }
-                if (sequenceFound) break;
-            }
-
-            // Update all parents' tags for objects with the targetTag
-            SetParentTagsForAll(sequenceFound, targetTag, newParentTag);
-        }
-        else
-        {
-            SetParentTagsForAll(false, targetTag, newParentTag);
         }
     }
 }

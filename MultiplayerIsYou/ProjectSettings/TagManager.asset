@@ -18,6 +18,8 @@ TagManager:
   - Win
   - Word_Wall
   - Word_Stop
+  - Lala
+  - Word_Lala
   layers:
   - Default
   - TransparentFX
