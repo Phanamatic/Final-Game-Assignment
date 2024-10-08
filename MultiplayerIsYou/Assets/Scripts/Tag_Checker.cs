@@ -1,19 +1,24 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
-public class TagChecker : MonoBehaviour
+public class Tag_Checker : MonoBehaviour
 {
     void Update()
     {
         // Check sequences for Baba and Flag using the same logic as the Wall sequences
-        CheckObjectSequences("Word_Baba", "Word_Is", "Word_You", "Baba", "You");
+        CheckObjectSequences("Word_Baba", "Word_Is", "Word_You", "Baba", "You1");
         CheckObjectSequences("Word_Flag", "Word_Is", "Word_Win", "Flag", "Win");
+        CheckObjectSequences("Word_Lala", "Word_Is", "Word_You", "Lala", "You2");
+        CheckObjectSequences("Word_Rock", "Word_Is", "Word_Stop", "Rock", "Stop");
+
         CheckWallSequences(); // Wall-specific logic
     }
 
     void CheckWallSequences()
     {
         bool wallIsStopFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_Stop", "Wall", "Stop");
-        bool wallIsYouFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_You", "Wall", "You");
+        bool wallIsYouFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_You", "Wall", "You1");
 
         // If neither sequence is found, set Wall objects to "Untagged"
         if (!wallIsStopFound && !wallIsYouFound)
@@ -25,7 +30,7 @@ public class TagChecker : MonoBehaviour
             // At least one sequence is found; set to the appropriate tag
             if (wallIsYouFound)
             {
-                SetParentTagsForAll(true, "Wall", "You");
+                SetParentTagsForAll(true, "Wall", "You1");
             }
             if (wallIsStopFound)
             {

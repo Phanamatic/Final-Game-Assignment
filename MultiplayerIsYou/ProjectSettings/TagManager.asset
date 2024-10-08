@@ -4,7 +4,6 @@
 TagManager:
   serializedVersion: 2
   tags:
-  - You
   - Stop
   - Baba
   - Wall
@@ -20,6 +19,10 @@ TagManager:
   - Word_Stop
   - Lala
   - Word_Lala
+  - You1
+  - You2
+  - Word_Rock
+  - Rock
   layers:
   - Default
   - TransparentFX

@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerController : MonoBehaviour
+public class Player2Controller : MonoBehaviour
 {
     private Vector3 moveDirection;
     public float pushDistance = 1f; // Distance to push objects
@@ -10,7 +10,7 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         // Check if the GameObject has the tag 'You'
-        if (gameObject.CompareTag("You"))
+        if (gameObject.CompareTag("You2"))
         {
             HandleMovementInput();
         }
@@ -21,19 +21,19 @@ public class PlayerController : MonoBehaviour
     {
         moveDirection = Vector3.zero;
 
-        if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow))
+        if (Input.GetKeyDown(KeyCode.UpArrow))
         {
             moveDirection = Vector3.up; // Move up by 1 unit
         }
-        if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow))
+        if (Input.GetKeyDown(KeyCode.DownArrow))
         {
             moveDirection = Vector3.down; // Move down by 1 unit
         }
-        if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow))
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
             moveDirection = Vector3.left; // Move left by 1 unit
         }
-        if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow))
+        if (Input.GetKeyDown(KeyCode.RightArrow))
         {
             moveDirection = Vector3.right; // Move right by 1 unit
         }
