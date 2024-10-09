@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class UIManager : MonoBehaviour
 {
@@ -15,12 +16,12 @@ public class UIManager : MonoBehaviour
     }
     public void returnToMenu()
     {
-        ;
+        SceneManager.LoadScene(0);
     }
 
-    public void restartLevel()
+    public void restartLevel(int level)
     {
-        ;
+        SceneManager.LoadScene(level);
     }
 
     public void openSetting()
@@ -32,6 +33,12 @@ public class UIManager : MonoBehaviour
     {
         ;
     }
+
+    public void levelOne()
+    {
+        SceneManager.LoadScene(1);
+    }
+
 
     public void resumePlay()
     {
