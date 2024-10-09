@@ -3,7 +3,33 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - Stop
+  - Baba
+  - Wall
+  - Word
+  - Word_Baba
+  - Word_Is
+  - Word_Flag
+  - Word_Win
+  - Flag
+  - Win
+  - Word_Wall
+  - Word_Stop
+  - Lala
+  - Word_Lala
+  - You1
+  - You2
+  - Word_Rock
+  - Rock
+  - Word_Skull
+  - Word_Defeat
+  - Skull
+  - Defeat
+  - Word_You1
+  - Word_You2
+  - Word_Them1
+  - Word_Them2
   layers:
   - Default
   - TransparentFX
