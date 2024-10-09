@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using Mirror;
 using Photon.Pun;
 using Photon.Realtime;
 using System.IO;
