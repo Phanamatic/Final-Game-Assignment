@@ -1,16 +1,26 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 public class Tag_Checker : MonoBehaviour
 {
+    public TextMeshProUGUI wallTextOutput; // Text to output the message when both wall sequences are found
+
     void Update()
     {
         // Check sequences for Baba and Flag using the same logic as the Wall sequences
-        CheckObjectSequences("Word_Baba", "Word_Is", "Word_You", "Baba", "You1");
+        CheckObjectSequences("Word_Baba", "Word_Is", "Word_You1", "Baba", "You1");
         CheckObjectSequences("Word_Flag", "Word_Is", "Word_Win", "Flag", "Win");
-        CheckObjectSequences("Word_Lala", "Word_Is", "Word_You", "Lala", "You2");
+        CheckObjectSequences("Word_Lala", "Word_Is", "Word_You2", "Lala", "You2");
         CheckObjectSequences("Word_Rock", "Word_Is", "Word_Stop", "Rock", "Stop");
+        CheckObjectSequences("Word_Skull", "Word_Is", "Word_Defeat", "Skull", "Defeat");
+        CheckObjectSequences("Word_Lala", "Word_Is", "Word_Them2", "Lala", "You2");
+        CheckObjectSequences("Word_Baba", "Word_Is", "Word_Them1", "Baba", "You1");
+        CheckObjectSequences("Word_Rock", "Word_Is", "Word_Them1", "Rock", "You1");
+
+
+
 
         CheckWallSequences(); // Wall-specific logic
     }
@@ -18,7 +28,7 @@ public class Tag_Checker : MonoBehaviour
     void CheckWallSequences()
     {
         bool wallIsStopFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_Stop", "Wall", "Stop");
-        bool wallIsYouFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_You", "Wall", "You1");
+        bool wallIsYouFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_Them2", "Wall", "You2");
 
         // If neither sequence is found, set Wall objects to "Untagged"
         if (!wallIsStopFound && !wallIsYouFound)
@@ -30,11 +40,22 @@ public class Tag_Checker : MonoBehaviour
             // At least one sequence is found; set to the appropriate tag
             if (wallIsYouFound)
             {
-                SetParentTagsForAll(true, "Wall", "You1");
+                SetParentTagsForAll(true, "Wall", "You2");
             }
-            if (wallIsStopFound)
+            else if (wallIsStopFound)
             {
                 SetParentTagsForAll(true, "Wall", "Stop");
+            }
+            else if (wallIsYouFound && wallIsStopFound)
+            {
+                // Set the tag of Wall to "Stop"
+                SetParentTagsForAll(true, "Wall", "Stop");
+
+                // Display the message
+                if (wallTextOutput != null)
+                {
+                    wallTextOutput.gameObject.SetActive(true);
+                }
             }
         }
     }

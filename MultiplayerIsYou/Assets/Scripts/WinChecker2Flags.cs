@@ -1,8 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement; // Import SceneManagement
-
-public class WinChecker : MonoBehaviour
+public class WinChecker2Flags : MonoBehaviour
 {
     public TextMeshProUGUI winText1;
     public TextMeshProUGUI winText2;
@@ -30,10 +29,14 @@ public class WinChecker : MonoBehaviour
         GameObject[] winObjects = GameObject.FindGameObjectsWithTag("Win");
         GameObject[] defeatObjects = GameObject.FindGameObjectsWithTag("Defeat");
 
-        bool isTouchingWin = CheckOverlap(you1Objects, winObjects) || CheckOverlap(you2Objects, winObjects);
+        // Both You1 and You2 must be touching Win for the win text to appear
+        bool isYou1TouchingWin = CheckOverlap(you1Objects, winObjects);
+        bool isYou2TouchingWin = CheckOverlap(you2Objects, winObjects);
+
+        // Check for defeat conditions
         GameObject touchingDefeatObj = GetTouchingDefeat(you1Objects, defeatObjects) ?? GetTouchingDefeat(you2Objects, defeatObjects);
 
-        if (isTouchingWin)
+        if (isYou1TouchingWin && isYou2TouchingWin)
         {
             DisplayWinTexts();
         }

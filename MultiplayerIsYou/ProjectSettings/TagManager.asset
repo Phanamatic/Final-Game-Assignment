@@ -10,7 +10,6 @@ TagManager:
   - Word
   - Word_Baba
   - Word_Is
-  - Word_You
   - Word_Flag
   - Word_Win
   - Flag
@@ -23,6 +22,14 @@ TagManager:
   - You2
   - Word_Rock
   - Rock
+  - Word_Skull
+  - Word_Defeat
+  - Skull
+  - Defeat
+  - Word_You1
+  - Word_You2
+  - Word_Them1
+  - Word_Them2
   layers:
   - Default
   - TransparentFX
