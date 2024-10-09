@@ -5,26 +5,106 @@ using UnityEngine;
 
 public class Tag_Checker : MonoBehaviour
 {
-    public TextMeshProUGUI wallTextOutput; // Text to output the message when both wall sequences are found
-
     void Update()
     {
         // Check sequences for Baba and Flag using the same logic as the Wall sequences
-        CheckObjectSequences("Word_Baba", "Word_Is", "Word_You1", "Baba", "You1");
         CheckObjectSequences("Word_Flag", "Word_Is", "Word_Win", "Flag", "Win");
-        CheckObjectSequences("Word_Lala", "Word_Is", "Word_You2", "Lala", "You2");
-        CheckObjectSequences("Word_Rock", "Word_Is", "Word_Stop", "Rock", "Stop");
         CheckObjectSequences("Word_Skull", "Word_Is", "Word_Defeat", "Skull", "Defeat");
-        CheckObjectSequences("Word_Lala", "Word_Is", "Word_Them2", "Lala", "You2");
-        CheckObjectSequences("Word_Baba", "Word_Is", "Word_Them1", "Baba", "You1");
-        CheckObjectSequences("Word_Rock", "Word_Is", "Word_Them1", "Rock", "You1");
 
-
-
-
-        CheckWallSequences(); // Wall-specific logic
+        CheckRockSequences();
+        CheckBabaSequences();
+        CheckWallSequences();
+        CheckLalaSequences();
     }
 
+    void CheckRockSequences()
+    {
+        bool RockIsStop = CheckSpecificSequence("Word_Rock", "Word_Is", "Word_Stop", "Rock", "Stop");
+        bool RockIsThem1 = CheckSpecificSequence("Word_Rock", "Word_Is", "Word_Them1", "Rock", "You1");
+
+        // If neither sequence is found, set Wall objects to "Untagged"
+        if (!RockIsStop && !RockIsThem1)
+        {
+            SetParentTagsForAll(false, "Wall", "Untagged");
+        }
+        else
+        {
+            // At least one sequence is found; set to the appropriate tag
+            if (RockIsThem1)
+            {
+                SetParentTagsForAll(true, "Wall", "You2");
+            }
+            else if (RockIsStop)
+            {
+                SetParentTagsForAll(true, "Wall", "Stop");
+            }
+            else if (RockIsThem1 && RockIsStop)
+            {
+                // Set the tag of Wall to "Stop"
+                SetParentTagsForAll(true, "Wall", "Stop");
+
+            }
+        }
+    }
+
+    void CheckLalaSequences()
+    {
+        bool LalaIsYou2 = CheckSpecificSequence("Word_Lala", "Word_Is", "Word_You2", "Lala", "You2");
+        bool LalaIsThem2 = CheckSpecificSequence("Word_Lala", "Word_Is", "Word_Them2", "Lala", "You2");
+
+
+        // If neither sequence is found, set Wall objects to "Untagged"
+        if (!LalaIsYou2 && !LalaIsThem2)
+        {
+            SetParentTagsForAll(false, "Lala", "Untagged");
+        }
+        else
+        {
+            // At least one sequence is found; set to the appropriate tag
+            if (LalaIsThem2)
+            {
+                SetParentTagsForAll(true, "Lala", "You2");
+            }
+            else if (LalaIsYou2)
+            {
+                SetParentTagsForAll(true, "Lala", "You2");
+            }
+            else if (LalaIsThem2 && LalaIsYou2)
+            {
+                // Set the tag of Wall to "Stop"
+                SetParentTagsForAll(true, "Lala", "You2");
+            }
+        }
+    }
+    void CheckBabaSequences()
+    {
+        bool BabaIsYou1 = CheckSpecificSequence("Word_Baba", "Word_Is", "Word_You1", "Baba", "You1");
+        bool BabaIsThem1 = CheckSpecificSequence("Word_Baba", "Word_Is", "Word_Them1", "Baba", "You1");
+
+
+        // If neither sequence is found, set Wall objects to "Untagged"
+        if (!BabaIsYou1 && !BabaIsThem1)
+        {
+            SetParentTagsForAll(false, "Baba", "Untagged");
+        }
+        else
+        {
+            // At least one sequence is found; set to the appropriate tag
+            if (BabaIsThem1)
+            {
+                SetParentTagsForAll(true, "Baba", "You1");
+            }
+            else if (BabaIsYou1)
+            {
+                SetParentTagsForAll(true, "Baba", "You1");
+            }
+            else if (BabaIsThem1 && BabaIsYou1)
+            {
+                // Set the tag of Wall to "Stop"
+                SetParentTagsForAll(true, "Baba", "You1");
+            }
+        }
+    }
     void CheckWallSequences()
     {
         bool wallIsStopFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_Stop", "Wall", "Stop");
@@ -50,12 +130,6 @@ public class Tag_Checker : MonoBehaviour
             {
                 // Set the tag of Wall to "Stop"
                 SetParentTagsForAll(true, "Wall", "Stop");
-
-                // Display the message
-                if (wallTextOutput != null)
-                {
-                    wallTextOutput.gameObject.SetActive(true);
-                }
             }
         }
     }
