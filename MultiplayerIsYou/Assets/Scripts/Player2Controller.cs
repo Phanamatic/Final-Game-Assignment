@@ -1,20 +1,22 @@
+using Photon.Pun;
+using Photon.Realtime;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Player2Controller : MonoBehaviour
+public class Player2Controller : MonoBehaviourPunCallbacks
 {
     private Vector3 moveDirection;
     public float pushDistance = 1f; // Distance to push objects
 
     void Update()
+{
+    // Ensure only the owner can control the GameObject
+    if (photonView.IsMine && gameObject.CompareTag("You2")) // For Player2
     {
-        // Check if the GameObject has the tag 'You'
-        if (gameObject.CompareTag("You2"))
-        {
-            HandleMovementInput();
-        }
+        HandleMovementInput();
     }
+}
 
     // This method will handle movement input from the player
     void HandleMovementInput()
