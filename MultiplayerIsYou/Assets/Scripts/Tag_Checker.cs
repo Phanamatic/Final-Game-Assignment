@@ -25,23 +25,23 @@ public class Tag_Checker : MonoBehaviour
         // If neither sequence is found, set Wall objects to "Untagged"
         if (!RockIsStop && !RockIsThem1)
         {
-            SetParentTagsForAll(false, "Wall", "Untagged");
+            SetParentTagsForAll(false, "Rock", "Untagged");
         }
         else
         {
             // At least one sequence is found; set to the appropriate tag
             if (RockIsThem1)
             {
-                SetParentTagsForAll(true, "Wall", "You2");
+                SetParentTagsForAll(true, "Rock", "You1");
             }
             else if (RockIsStop)
             {
-                SetParentTagsForAll(true, "Wall", "Stop");
+                SetParentTagsForAll(true, "Rock", "Stop");
             }
             else if (RockIsThem1 && RockIsStop)
             {
                 // Set the tag of Wall to "Stop"
-                SetParentTagsForAll(true, "Wall", "Stop");
+                SetParentTagsForAll(true, "Rock", "Stop");
 
             }
         }
