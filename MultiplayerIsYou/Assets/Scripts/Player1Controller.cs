@@ -1,20 +1,21 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Photon.Pun;
 
-public class Player1Controller : MonoBehaviour
+public class Player1Controller : MonoBehaviourPunCallbacks
 {
     private Vector3 moveDirection;
     public float pushDistance = 1f; // Distance to push objects
 
     void Update()
+{
+    // Ensure only the owner can control the GameObject
+    if (photonView.IsMine && gameObject.CompareTag("You1")) // For Player1
     {
-        // Check if the GameObject has the tag 'You'
-        if (gameObject.CompareTag("You1"))
-        {
-            HandleMovementInput();
-        }
+        HandleMovementInput();
     }
+}
 
     // This method will handle movement input from the player
     void HandleMovementInput()
@@ -123,19 +124,31 @@ public class Player1Controller : MonoBehaviour
 
     // Push the object and handle pushing of adjacent pushable objects
     void PushObject(GameObject obj, Vector3 direction)
+{
+    Vector3 pushTargetPosition = obj.transform.position + direction * pushDistance;
+
+    // Move the object on all clients
+    photonView.RPC("RPC_MoveObject", RpcTarget.All, obj.GetComponent<PhotonView>().ViewID, pushTargetPosition);
+
+    // Check for adjacent pushable objects in the same direction and push them
+    Collider2D adjacentCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
+    if (adjacentCollider != null && IsPushable(adjacentCollider.gameObject))
     {
-        Vector3 pushTargetPosition = obj.transform.position + direction * pushDistance;
-
-        // Move the current pushable object
-        obj.transform.position = pushTargetPosition;
-
-        // Check for adjacent pushable objects in the same direction and push them
-        Collider2D adjacentCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
-        if (adjacentCollider != null && IsPushable(adjacentCollider.gameObject))
-        {
-            PushObject(adjacentCollider.gameObject, direction);
-        }
+        PushObject(adjacentCollider.gameObject, direction);
     }
+}
+
+// RPC to move object on all clients
+[PunRPC]
+void RPC_MoveObject(int objectViewID, Vector3 newPosition)
+{
+    PhotonView objView = PhotonView.Find(objectViewID);
+    if (objView != null)
+    {
+        objView.transform.position = newPosition;
+    }
+}
+
 
     // Check if the object has a child with the tag "Word" (meaning it's pushable)
     bool IsPushable(GameObject obj)
