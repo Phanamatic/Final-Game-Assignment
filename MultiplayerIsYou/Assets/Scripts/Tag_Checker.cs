@@ -7,16 +7,74 @@ public class Tag_Checker : MonoBehaviour
 {
     void Update()
     {
-        // Check sequences for Baba and Flag using the same logic as the Wall sequences
-        CheckObjectSequences("Word_Flag", "Word_Is", "Word_Win", "Flag", "Win");
         CheckObjectSequences("Word_Skull", "Word_Is", "Word_Defeat", "Skull", "Defeat");
+        CheckObjectSequences("Word_Star", "Word_Is", "Word_Defeat", "Star", "Defeat");
+
 
         CheckRockSequences();
         CheckBabaSequences();
         CheckWallSequences();
         CheckLalaSequences();
+        CheckFlagSequences();
+        CheckPillarSequences();
     }
 
+    void CheckPillarSequences()
+    {
+        bool PillarIsDefeat = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_Defeat", "Pillar", "Defeat");
+        bool PillarIsPush = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_Push", "Pillar", "Push");
+        bool PillarIsThem1 = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_Them1", "Pillar", "You1");
+
+        if (!PillarIsDefeat && !PillarIsPush && !PillarIsThem1)
+        {
+            SetParentTagsForAll(false, "Pillar", "Untagged");
+        }
+        else
+        {
+            // At least one sequence is found; set to the appropriate tag
+            if (PillarIsDefeat)
+            {
+                SetParentTagsForAll(true, "Pillar", "Defeat");
+            }
+            else if (PillarIsPush)
+            {
+                SetParentTagsForAll(true, "Pillar", "Push");
+            }
+            else if (PillarIsThem1)
+            {
+                SetParentTagsForAll(true, "Pillar", "You1");
+            }
+            else if (PillarIsThem1 && PillarIsPush)
+            {
+                // Set the tag of Wall to "Stop"
+                SetParentTagsForAll(true, "Pillar", "You1");
+            }
+        }
+    }
+
+    void CheckFlagSequences()
+    {
+        bool FlagIsStop = CheckSpecificSequence("Word_Flag", "Word_Is", "Word_Stop", "Flag", "Stop");
+        bool FlagIsWin = CheckSpecificSequence("Word_Flag", "Word_Is", "Word_Win", "Flag", "Win");
+
+        // If neither sequence is found, set Wall objects to "Untagged"
+        if (!FlagIsStop && !FlagIsWin)
+        {
+            SetParentTagsForAll(false, "Flag", "Untagged");
+        }
+        else
+        {
+            // At least one sequence is found; set to the appropriate tag
+            if (FlagIsWin)
+            {
+                SetParentTagsForAll(true, "Flag", "Win");
+            }
+            else if (FlagIsStop)
+            {
+                SetParentTagsForAll(true, "Flag", "Stop");
+            }
+        }
+    }
     void CheckRockSequences()
     {
         bool RockIsStop = CheckSpecificSequence("Word_Rock", "Word_Is", "Word_Stop", "Rock", "Stop");
@@ -109,9 +167,10 @@ public class Tag_Checker : MonoBehaviour
     {
         bool wallIsStopFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_Stop", "Wall", "Stop");
         bool wallIsYouFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_Them2", "Wall", "You2");
+        bool wallIsWinFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_Win", "Wall", "Win");
 
         // If neither sequence is found, set Wall objects to "Untagged"
-        if (!wallIsStopFound && !wallIsYouFound)
+        if (!wallIsStopFound && !wallIsYouFound && !wallIsWinFound)
         {
             SetParentTagsForAll(false, "Wall", "Untagged");
         }
@@ -125,6 +184,10 @@ public class Tag_Checker : MonoBehaviour
             else if (wallIsStopFound)
             {
                 SetParentTagsForAll(true, "Wall", "Stop");
+            }
+            else if (wallIsWinFound)
+            {
+                SetParentTagsForAll(true, "Wall", "Win");
             }
             else if (wallIsYouFound && wallIsStopFound)
             {

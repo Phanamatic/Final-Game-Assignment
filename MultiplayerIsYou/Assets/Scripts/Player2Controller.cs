@@ -140,13 +140,24 @@ public class Player2Controller : MonoBehaviour
     // Check if the object has a child with the tag "Word" (meaning it's pushable)
     bool IsPushable(GameObject obj)
     {
+        // Check if the object itself has the tag "Push"
+        if (obj.CompareTag("Push"))
+        {
+            return true;
+        }
+
+        // Check if any child of the object has the tag "Word"
         foreach (Transform child in obj.transform)
         {
             if (child.CompareTag("Word"))
             {
-                return true; // Object is pushable if a child has the tag "Word"
+                return true;
             }
         }
-        return false; // Not pushable otherwise
+
+        // Not pushable if neither condition is met
+        return false;
     }
+
+
 }
