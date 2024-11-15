@@ -21,7 +21,7 @@ public class UIManager : MonoBehaviour
 
     public void restartLevel(int level)
     {
-        SceneManager.LoadScene(level);
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     public void openSetting()
