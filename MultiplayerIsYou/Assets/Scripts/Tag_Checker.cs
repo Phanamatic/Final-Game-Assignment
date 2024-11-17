@@ -24,6 +24,7 @@ public class Tag_Checker : MonoBehaviour
         bool PillarIsDefeat = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_Defeat", "Pillar", "Defeat");
         bool PillarIsPush = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_Push", "Pillar", "Push");
         bool PillarIsThem1 = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_Them1", "Pillar", "You1");
+        bool PillarIsYou1 = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_You1", "Pillar", "You1");
 
         if (!PillarIsDefeat && !PillarIsPush && !PillarIsThem1)
         {
@@ -41,6 +42,10 @@ public class Tag_Checker : MonoBehaviour
                 SetParentTagsForAll(true, "Pillar", "Push");
             }
             else if (PillarIsThem1)
+            {
+                SetParentTagsForAll(true, "Pillar", "You1");
+            }
+            else if (PillarIsYou1)
             {
                 SetParentTagsForAll(true, "Pillar", "You1");
             }

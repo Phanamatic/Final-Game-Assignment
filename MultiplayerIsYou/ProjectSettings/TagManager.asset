@@ -36,6 +36,12 @@ TagManager:
   - Pillar
   - Star
   - Push
+  - Door
+  - Word_Door
+  - Word_Shut
+  - Word_Open
+  - Word_Key
+  - Key
   layers:
   - Default
   - TransparentFX
