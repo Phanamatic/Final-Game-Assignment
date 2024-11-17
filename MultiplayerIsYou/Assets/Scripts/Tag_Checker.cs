@@ -17,6 +17,88 @@ public class Tag_Checker : MonoBehaviour
         CheckLalaSequences();
         CheckFlagSequences();
         CheckPillarSequences();
+        CheckDoorSequences();
+        CheckKeySequences();
+
+    }
+    
+    void CheckKeySequences()
+    {
+        bool KeyIsOpen = CheckSpecificSequence("Word_Key", "Word_Is", "Word_Open", "Key", "Open");
+        bool KeyIsPush = CheckSpecificSequence("Word_Key", "Word_Is", "Word_Push", "Key", "Push");
+        bool KeyIsWin = CheckSpecificSequence("Word_Key", "Word_Is", "Word_Win", "Key", "Win");
+
+        if (!KeyIsOpen && !KeyIsPush && !KeyIsWin)
+        {
+            SetParentTagsForAll(false, "Key", "Untagged");
+        }
+        else
+        {
+            // Check combined conditions first
+            if (KeyIsPush && KeyIsOpen)
+            {
+                SetParentTagsForAll(true, "Key", "OpenAndPush");
+            }
+            else if (KeyIsOpen)
+            {
+                SetParentTagsForAll(true, "Key", "Open");
+            }
+            else if (KeyIsPush)
+            {
+                SetParentTagsForAll(true, "Key", "Push");
+            }
+            else if (KeyIsWin)
+            {
+                SetParentTagsForAll(true, "Key", "Win");
+            }
+        }
+    }
+
+    void CheckDoorSequences()
+    {
+        bool DoorIsShut = CheckSpecificSequence("Word_Door", "Word_Is", "Word_Shut", "Door", "Shut");
+        bool DoorIsWin = CheckSpecificSequence("Word_Door", "Word_Is", "Word_Win", "Door", "Win");
+        bool DoorIsPush = CheckSpecificSequence("Word_Door", "Word_Is", "Word_Push", "Door", "Push");
+        bool DoorIsStop = CheckSpecificSequence("Word_Door", "Word_Is", "Word_Stop", "Door", "Stop");
+
+        if (!DoorIsPush && !DoorIsShut && !DoorIsWin && !DoorIsStop)
+        {
+            SetParentTagsForAll(false, "Door", "Untagged");
+        }
+        else
+        {
+            if (DoorIsWin)
+            {
+                SetParentTagsForAll(true, "Door", "Win");
+            }
+            else if (DoorIsShut)
+            {
+                SetParentTagsForAll(true, "Door", "Shut");
+            }
+            else if (DoorIsPush)
+            {
+                SetParentTagsForAll(true, "Door", "Push");
+            }
+            else if (DoorIsStop)
+            {
+                SetParentTagsForAll(true, "Door", "Stop");
+            }
+            else if (DoorIsWin && DoorIsStop)
+            {
+                // Set the tag of Wall to "Stop"
+                SetParentTagsForAll(true, "Pillar", "Stop");
+            }
+            else if (DoorIsShut && DoorIsStop)
+            {
+                // Set the tag of Wall to "Stop"
+                SetParentTagsForAll(true, "Pillar", "Shut");
+            }
+            else if (DoorIsPush && DoorIsStop)
+            {
+                // Set the tag of Wall to "Stop"
+                SetParentTagsForAll(true, "Pillar", "Push");
+            }
+        }
     }
 
     void CheckPillarSequences()
@@ -239,7 +321,7 @@ public class Tag_Checker : MonoBehaviour
                             (IsVerticallyAdjacent(first.transform.position, middle.transform.position) &&
                              IsVerticallyAdjacent(middle.transform.position, last.transform.position)))
                         {
-                            Debug.Log($"Sequence found: {first.tag} - {middle.tag} - {last.tag}");
+                            //Debug.Log($"Sequence found: {first.tag} - {middle.tag} - {last.tag}");
                             return true; // Sequence found
                         }
                     }
@@ -273,9 +355,9 @@ public class Tag_Checker : MonoBehaviour
                 if (parentObject != null)
                 {
                     parentObject.tag = isSequence ? newTag : "Untagged";
-                    Debug.Log(isSequence
-                        ? $"Sequence found: Parent's tag set to '{newTag}'"
-                        : "Broken sequence: Parent's tag set to 'Untagged'");
+                    //Debug.Log(isSequence
+                        //? $"Sequence found: Parent's tag set to '{newTag}'"
+                       // : "Broken sequence: Parent's tag set to 'Untagged'");
                 }
                 else
                 {

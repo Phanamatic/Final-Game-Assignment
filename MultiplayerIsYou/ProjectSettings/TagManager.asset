@@ -42,6 +42,9 @@ TagManager:
   - Word_Open
   - Word_Key
   - Key
+  - OpenAndPush
+  - Open
+  - Shut
   layers:
   - Default
   - TransparentFX
