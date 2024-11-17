@@ -90,7 +90,7 @@ public class Player1Controller : MonoBehaviour
                 // Special handling for "Shut"
                 if (pushBlockCheck.CompareTag("Shut"))
                 {
-                    if (!HasChildWithTag(obj, "Open") && !HasChildWithTag(obj, "OpenAndPush"))
+                    if (!HasOpenTag(obj)) // Check for Open or OpenAndPush tags directly
                     {
                         Debug.Log($"Cannot push into Shut at {targetPosition} without Open or OpenAndPush!");
                         return false;
@@ -128,7 +128,7 @@ public class Player1Controller : MonoBehaviour
         Collider2D shutCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
         if (shutCollider != null && shutCollider.CompareTag("Shut"))
         {
-            if (HasChildWithTag(obj, "Open") || HasChildWithTag(obj, "OpenAndPush"))
+            if (HasOpenTag(obj)) // Check for Open or OpenAndPush tags directly on the object
             {
                 Destroy(shutCollider.gameObject);
                 Debug.Log($"Shut object at {pushTargetPosition} destroyed!");
@@ -142,32 +142,13 @@ public class Player1Controller : MonoBehaviour
 
     bool IsPushable(GameObject obj)
     {
-        if (obj.CompareTag("Push") || obj.CompareTag("OpenAndPush"))
-        {
-            return true;
-        }
-
-        foreach (Transform child in obj.transform)
-        {
-            if (child.CompareTag("Word") || child.CompareTag("Open") || child.CompareTag("OpenAndPush"))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        // Check for Push or OpenAndPush tags directly
+        return obj.CompareTag("Push") || obj.CompareTag("OpenAndPush");
     }
 
-    bool HasChildWithTag(GameObject obj, string tag)
+    bool HasOpenTag(GameObject obj)
     {
-        foreach (Transform child in obj.transform)
-        {
-            if (child.CompareTag(tag))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        // Check if the object has the Open or OpenAndPush tags
+        return obj.CompareTag("Open") || obj.CompareTag("OpenAndPush");
     }
 }
