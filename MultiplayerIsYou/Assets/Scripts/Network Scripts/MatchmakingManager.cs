@@ -11,17 +11,27 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     [Header("UI Elements")]
     public TMP_Text usernameText;
     public Image profileIconImage;
-    public Transform lobbyListParent; // ScrollView Content Parent
-    public GameObject lobbyPrefab;   // Prefab for displaying lobby details
+
+    [Header("Panels")]
     public GameObject matchmakingPanel;
     public GameObject mainMenuPanel;
-    public GameObject lobbyPanel;    // Lobby details panel
-    public GameObject createLobbyPanel; // Panel for creating lobbies
+    public GameObject lobbyPanel; 
+    public GameObject createLobbyPanel;
+
+    [Header("Lobby Lists")]
+    public Transform lobbyListParent; // ScrollView Content Parent
+    public GameObject lobbyPrefab;   // Prefab for displaying lobby details
+    
+    [Header("Lobby Creation Panel")]
     public TMP_InputField lobbyNameInput;
+
+    [Header("Joined Lobby Info")]
     public TMP_Text lobbyNameText, playersConnectedText, publicPrivateText;
     public Image player1Icon, player2Icon;
     public TMP_Text player1Username, player2Username;
     public GameObject player1Panel, player2Panel; // Panels for player details
+
+    [Header("Buttons")]
     public Button createGameButton, startGameButton, leaveButton, publicPrivateButton, confirmCreateLobbyButton;
 
     private bool isLobbyPrivate = false; // Tracks if the lobby is private
@@ -85,43 +95,118 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     }
 
     public override void OnRoomListUpdate(List<RoomInfo> roomList)
-    {
-        cachedRoomList.Clear();
-        foreach (Transform child in lobbyListParent)
-        {
-            Destroy(child.gameObject);
-        }
+{
+    Debug.Log($"Room list updated. Total rooms: {roomList.Count}");
 
-        foreach (RoomInfo room in roomList)
-        {
-            if (!room.RemovedFromList)
-            {
-                cachedRoomList.Add(room);
-                CreateRoomEntry(room);
-            }
-        }
+    // Clear existing room prefabs
+    foreach (Transform child in lobbyListParent)
+    {
+        Destroy(child.gameObject);
     }
 
-    private void CreateRoomEntry(RoomInfo room)
+    // Recreate the room list UI
+    foreach (RoomInfo room in roomList)
     {
-        GameObject lobbyItem = Instantiate(lobbyPrefab, lobbyListParent);
-
-        lobbyItem.transform.Find("LobbyName").GetComponent<TMP_Text>().text = room.Name;
-        lobbyItem.transform.Find("PlayerCount").GetComponent<TMP_Text>().text = $"{room.PlayerCount}/{room.MaxPlayers}";
-        lobbyItem.transform.Find("PublicPrivate").GetComponent<TMP_Text>().text = room.IsVisible ? "Public" : "Private";
-
-        Button joinButton = lobbyItem.transform.Find("JoinButton").GetComponent<Button>();
-        joinButton.onClick.RemoveAllListeners();
-
-        if (room.PlayerCount < room.MaxPlayers && !PhotonNetwork.InRoom)
+        if (!room.RemovedFromList && room.IsVisible)
         {
-            joinButton.interactable = true;
-            joinButton.onClick.AddListener(() => JoinLobby(room.Name));
+            CreateRoomEntry(room);
         }
-        else
+    }
+}
+
+
+
+    private void CreateRoomEntry(RoomInfo room)
+{
+    if (lobbyPrefab == null)
+    {
+        Debug.LogError("Lobby prefab is not assigned in the inspector.");
+        return;
+    }
+
+    // Instantiate the prefab under the lobbyListParent
+    GameObject lobbyItem = Instantiate(lobbyPrefab, lobbyListParent);
+    if (lobbyItem == null)
+    {
+        Debug.LogError("Failed to instantiate lobbyPrefab.");
+        return;
+    }
+
+    Debug.Log($"Creating room entry: {room.Name}, Players: {room.PlayerCount}/{room.MaxPlayers}, Visible: {room.IsVisible}");
+
+    // Find and set lobby details
+    TMP_Text lobbyNameText = lobbyItem.transform.Find("LobbyName")?.GetComponent<TMP_Text>();
+    TMP_Text playerCountText = lobbyItem.transform.Find("PlayerCount")?.GetComponent<TMP_Text>();
+    TMP_Text publicPrivateText = lobbyItem.transform.Find("PublicPrivate")?.GetComponent<TMP_Text>();
+    Button joinButton = lobbyItem.transform.Find("JoinButton")?.GetComponent<Button>();
+
+    if (lobbyNameText != null)
+        lobbyNameText.text = room.Name;
+    else
+        Debug.LogError("LobbyNameText not found or missing TMP_Text component");
+
+    if (playerCountText != null)
+        playerCountText.text = $"{room.PlayerCount}/{room.MaxPlayers}";
+    else
+        Debug.LogError("PlayerCountText not found or missing TMP_Text component");
+
+    if (publicPrivateText != null)
+        publicPrivateText.text = room.IsVisible ? "Public" : "Private";
+    else
+        Debug.LogError("PublicPrivateText not found or missing TMP_Text component");
+
+    if (joinButton == null)
+    {
+        Debug.LogError("JoinButton not found or missing Button component");
+        return;
+    }
+
+    // Configure Join Button
+    joinButton.onClick.RemoveAllListeners();
+
+    if (PhotonNetwork.InRoom)
+    {
+        joinButton.interactable = false;
+    }
+    else if (room.PlayerCount < room.MaxPlayers)
+    {
+        joinButton.interactable = true;
+        joinButton.onClick.AddListener(() => JoinLobby(room.Name));
+    }
+    else
+    {
+        joinButton.interactable = false;
+    }
+
+    // Reset player icons (optional customization)
+    Image player1Icon = lobbyItem.transform.Find("Player1Icon")?.GetComponent<Image>();
+    Image player2Icon = lobbyItem.transform.Find("Player2Icon")?.GetComponent<Image>();
+    if (player1Icon != null)
+        player1Icon.sprite = null;
+    else
+        Debug.LogWarning("Player1Icon not found or missing Image component");
+
+    if (player2Icon != null)
+        player2Icon.sprite = null;
+    else
+        Debug.LogWarning("Player2Icon not found or missing Image component");
+
+    // Force layout rebuild
+    Canvas.ForceUpdateCanvases();
+    LayoutRebuilder.ForceRebuildLayoutImmediate(lobbyListParent.GetComponent<RectTransform>());
+}
+
+
+    public void OnCreateLobbyClicked()
+    {
+        string lobbyName = lobbyNameInput.text;
+        if (string.IsNullOrEmpty(lobbyName))
         {
-            joinButton.interactable = false;
+            Debug.LogError("Lobby name cannot be empty.");
+            return;
         }
+
+        CreateLobby(lobbyName, isLobbyPrivate);
     }
 
     public void JoinLobby(string roomName)
@@ -157,18 +242,6 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         PhotonNetwork.CreateRoom(lobbyName, roomOptions);
         createLobbyPanel.SetActive(false);
         matchmakingPanel.SetActive(true); // Show the matchmaking panel again
-    }
-
-    public void OnCreateLobbyClicked()
-    {
-        string lobbyName = lobbyNameInput.text;
-        if (string.IsNullOrEmpty(lobbyName))
-        {
-            Debug.LogError("Lobby name cannot be empty.");
-            return;
-        }
-
-        CreateLobby(lobbyName, isLobbyPrivate);
     }
 
     public void TogglePublicPrivate()
@@ -274,14 +347,21 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     }
 
     public override void OnLeftRoom()
-    {
-        player1Username.text = "";
-        player2Username.text = "";
-        player1Icon.sprite = null;
-        player2Icon.sprite = null;
-        playersConnectedText.text = "";
-        ShowMatchmakingPanel();
-    }
+{
+    Debug.Log("Player left the room.");
+
+    // Refresh the room list to update join buttons
+    OnRoomListUpdate(cachedRoomList);
+
+    // Clear lobby details
+    player1Username.text = "";
+    player2Username.text = "";
+    player1Icon.sprite = null;
+    player2Icon.sprite = null;
+    playersConnectedText.text = "";
+    ShowMatchmakingPanel();
+}
+
 
     public void StartGame()
     {
@@ -311,4 +391,11 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         Application.Quit();
 #endif
     }
+
+    public void ShowMenuPanel()
+    {
+        mainMenuPanel.SetActive(true);
+        matchmakingPanel.SetActive(false);
+    }
+
 }
