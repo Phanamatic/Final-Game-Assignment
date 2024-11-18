@@ -30,6 +30,21 @@ TagManager:
   - Word_You2
   - Word_Them1
   - Word_Them2
+  - Word_Pillar
+  - Word_Push
+  - Word_Star
+  - Pillar
+  - Star
+  - Push
+  - Door
+  - Word_Door
+  - Word_Shut
+  - Word_Open
+  - Word_Key
+  - Key
+  - OpenAndPush
+  - Open
+  - Shut
   layers:
   - Default
   - TransparentFX
