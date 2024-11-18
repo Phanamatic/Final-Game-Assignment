@@ -13,7 +13,8 @@ using PlayFab;
 using PlayFab.ClientModels;
 using ExitGames.Client.Photon;
 using System.Collections.Generic;
-
+using dotenv.net;
+using Amazon.Runtime;
 
 public class MainMenuManager : MonoBehaviourPunCallbacks
 {
@@ -35,11 +36,30 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
     public Image profileIconImage;
 
     private const string bucketName = "multiplayerisyou";
-    private AmazonS3Client s3Client = new AmazonS3Client(
-        "AKIARHQBNWJCXTWXEVQP",
-        "W1uqH1G63xuqkq8CSXUFmJ9KaTD/TP6bL4A/Z8ut",
-        RegionEndpoint.EUNorth1
-    );
+    private AmazonS3Client s3Client;
+
+    private void Awake()
+    {
+        // Load environment variables from the .env file
+        DotEnv.Load();
+
+        // Fetch AWS credentials from environment variables
+        string accessKey = Environment.GetEnvironmentVariable("AWS_ACCESS_KEY");
+        string secretKey = Environment.GetEnvironmentVariable("AWS_SECRET_KEY");
+        string region = Environment.GetEnvironmentVariable("AWS_REGION");
+
+        if (string.IsNullOrEmpty(accessKey) || string.IsNullOrEmpty(secretKey) || string.IsNullOrEmpty(region))
+        {
+            Debug.LogError("AWS credentials or region are not set in the environment variables.");
+            return;
+        }
+
+        // Initialize AmazonS3Client with credentials from the environment
+        var credentials = new BasicAWSCredentials(accessKey, secretKey);
+        var regionEndpoint = RegionEndpoint.GetBySystemName(region);
+
+        s3Client = new AmazonS3Client(credentials, regionEndpoint);
+    }
 
     private void Start()
     {
@@ -96,15 +116,14 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
     }
 
     public void QuitGame()
-{
+    {
 #if UNITY_EDITOR
-    UnityEditor.EditorApplication.isPlaying = false;
+        UnityEditor.EditorApplication.isPlaying = false;
 #else
-    Application.Quit();
+        Application.Quit();
 #endif
-    Debug.Log("Game Quit");
-}
-
+        Debug.Log("Game Quit");
+    }
 
     public void OnIconSelected(Button iconButton)
     {
@@ -126,23 +145,21 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
     }
 
     public async void OnSaveProfileClicked()
-{
-    // Update icon
-    if (selectedIcon != null)
     {
-        string filePath = await SaveSpriteToLocal(selectedIcon);
-        string iconUrl = await UploadIconToS3(filePath);
-        UpdateIconInPhoton(iconUrl);
+        // Update icon
+        if (selectedIcon != null)
+        {
+            string filePath = await SaveSpriteToLocal(selectedIcon);
+            string iconUrl = await UploadIconToS3(filePath);
+            UpdateIconInPhoton(iconUrl);
+        }
+
+        // Ensure UI reflects updated data
+        UpdateMenuUI();
+
+        profilePanel.SetActive(false);
+        menuPanel.SetActive(true);
     }
-
-    // Ensure UI reflects updated data
-    UpdateMenuUI();
-
-    profilePanel.SetActive(false);
-    menuPanel.SetActive(true);
-}
-
-
 
     private Texture2D LoadTexture(string filePath)
     {
@@ -153,43 +170,41 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
     }
 
     private async Task<string> SaveSpriteToLocal(Sprite sprite)
-{
-    string filePath = Path.Combine(Application.persistentDataPath, "temp_profile_picture.png");
-
-    // Ensure the sprite's texture is readable
-    Texture2D texture = MakeTextureReadable(sprite.texture);
-
-    if (texture == null)
     {
-        Debug.LogError("Failed to make the sprite texture readable.");
-        return null;
+        string filePath = Path.Combine(Application.persistentDataPath, "temp_profile_picture.png");
+
+        // Ensure the sprite's texture is readable
+        Texture2D texture = MakeTextureReadable(sprite.texture);
+
+        if (texture == null)
+        {
+            Debug.LogError("Failed to make the sprite texture readable.");
+            return null;
+        }
+
+        // Encode the texture to PNG
+        byte[] imageData = texture.EncodeToPNG();
+
+        if (imageData == null || imageData.Length == 0)
+        {
+            Debug.LogError("Failed to encode texture to PNG.");
+            return null;
+        }
+
+        // Save the PNG data to a file
+        try
+        {
+            await File.WriteAllBytesAsync(filePath, imageData);
+            Debug.Log($"Sprite saved to local file: {filePath}");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Error saving sprite to local file: {ex.Message}");
+            return null;
+        }
+
+        return filePath;
     }
-
-    // Encode the texture to PNG
-    byte[] imageData = texture.EncodeToPNG();
-
-    if (imageData == null || imageData.Length == 0)
-    {
-        Debug.LogError("Failed to encode texture to PNG.");
-        return null;
-    }
-
-    // Save the PNG data to a file
-    try
-    {
-        await File.WriteAllBytesAsync(filePath, imageData);
-        Debug.Log($"Sprite saved to local file: {filePath}");
-    }
-    catch (Exception ex)
-    {
-        Debug.LogError($"Error saving sprite to local file: {ex.Message}");
-        return null;
-    }
-
-    return filePath;
-}
-
-
 
     private async Task<string> UploadIconToS3(string filePath)
     {
@@ -207,7 +222,7 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
 
             await s3Client.PutObjectAsync(putRequest);
             Debug.Log("Icon uploaded to S3 successfully.");
-            return $"https://{bucketName}.s3.{Amazon.RegionEndpoint.EUNorth1.SystemName}.amazonaws.com/{key}";
+            return $"https://{bucketName}.s3.{RegionEndpoint.USEast1.SystemName}.amazonaws.com/{key}";
         }
         catch (AmazonS3Exception ex)
         {
@@ -228,110 +243,71 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
         }
     }
 
-    private async Task UpdateUsernameInPlayFab(string username)
+    public async Task<Texture2D> DownloadImageFromS3(string url)
 {
-    if (string.IsNullOrEmpty(username) || username.Length < 3 || username.Length > 25)
-    {
-        Debug.LogError("Invalid username. It must be between 3 and 25 characters.");
-        return;
-    }
-
-    var updateDataRequest = new UpdateUserDataRequest
-    {
-        Data = new Dictionary<string, string>
-        {
-            { "NewUsername", username } // Update NewUsername field
-        }
-    };
-
-    var taskCompletionSource = new TaskCompletionSource<bool>();
-
-    PlayFabClientAPI.UpdateUserData(updateDataRequest, result =>
-    {
-        PhotonNetwork.NickName = username;
-        PhotonNetwork.LocalPlayer.SetCustomProperties(new Hashtable
-        {
-            { "Username", username }
-        });
-        Debug.Log("New username updated in PlayFab and Photon.");
-        taskCompletionSource.SetResult(true);
-    }, error =>
-    {
-        Debug.LogError($"Error updating username in PlayFab: {error.ErrorMessage}");
-        taskCompletionSource.SetResult(false);
-    });
-
-    await taskCompletionSource.Task;
-}
-
-
-
-
-    private async Task<Texture2D> DownloadImageFromS3(string url)
-    {
-        try
-        {
-            var getRequest = new GetObjectRequest
-            {
-                BucketName = bucketName,
-                Key = new Uri(url).LocalPath.TrimStart('/')
-            };
-
-            using (var response = await s3Client.GetObjectAsync(getRequest))
-            using (var stream = new MemoryStream())
-            {
-                await response.ResponseStream.CopyToAsync(stream);
-                Texture2D texture = new Texture2D(2, 2);
-                texture.LoadImage(stream.ToArray());
-                return texture;
-            }
-        }
-        catch (AmazonS3Exception ex)
-        {
-            Debug.LogError($"Error downloading image from S3: {ex.Message}");
-            return null;
-        }
-    }
-
-    private Texture2D MakeTextureReadable(Texture2D originalTexture)
-{
-    Debug.Log($"Texture Format: {originalTexture.format}, Width: {originalTexture.width}, Height: {originalTexture.height}, Readable: {originalTexture.isReadable}");
-
-    if (originalTexture.isReadable)
-    {
-        return originalTexture; // Return if the texture is already readable
-    }
-
     try
     {
-        RenderTexture tempRenderTexture = RenderTexture.GetTemporary(
-            originalTexture.width,
-            originalTexture.height,
-            0,
-            RenderTextureFormat.Default,
-            RenderTextureReadWrite.Linear);
+        // Extract bucket and key from the URL
+        Uri uri = new Uri(url);
+        string key = uri.LocalPath.TrimStart('/');
 
-        Graphics.Blit(originalTexture, tempRenderTexture);
+        var getRequest = new GetObjectRequest
+        {
+            BucketName = bucketName,
+            Key = key
+        };
 
-        RenderTexture previousRenderTexture = RenderTexture.active;
-        RenderTexture.active = tempRenderTexture;
-
-        Texture2D readableTexture = new Texture2D(originalTexture.width, originalTexture.height, TextureFormat.RGBA32, false);
-        readableTexture.ReadPixels(new Rect(0, 0, tempRenderTexture.width, tempRenderTexture.height), 0, 0);
-        readableTexture.Apply();
-
-        RenderTexture.active = previousRenderTexture;
-        RenderTexture.ReleaseTemporary(tempRenderTexture);
-
-        return readableTexture;
+        using (var response = await s3Client.GetObjectAsync(getRequest))
+        using (var stream = new MemoryStream())
+        {
+            await response.ResponseStream.CopyToAsync(stream);
+            Texture2D texture = new Texture2D(2, 2);
+            texture.LoadImage(stream.ToArray());
+            return texture;
+        }
     }
-    catch (Exception ex)
+    catch (AmazonS3Exception ex)
     {
-        Debug.LogError($"Error making texture readable: {ex.Message}");
+        Debug.LogError($"Error downloading image from S3: {ex.Message}");
         return null;
     }
 }
 
 
+    private Texture2D MakeTextureReadable(Texture2D originalTexture)
+    {
+        if (originalTexture.isReadable)
+        {
+            return originalTexture; // Return if the texture is already readable
+        }
 
+        try
+        {
+            RenderTexture tempRenderTexture = RenderTexture.GetTemporary(
+                originalTexture.width,
+                originalTexture.height,
+                0,
+                RenderTextureFormat.Default,
+                RenderTextureReadWrite.Linear);
+
+            Graphics.Blit(originalTexture, tempRenderTexture);
+
+            RenderTexture previousRenderTexture = RenderTexture.active;
+            RenderTexture.active = tempRenderTexture;
+
+            Texture2D readableTexture = new Texture2D(originalTexture.width, originalTexture.height, TextureFormat.RGBA32, false);
+            readableTexture.ReadPixels(new Rect(0, 0, tempRenderTexture.width, tempRenderTexture.height), 0, 0);
+            readableTexture.Apply();
+
+            RenderTexture.active = previousRenderTexture;
+            RenderTexture.ReleaseTemporary(tempRenderTexture);
+
+            return readableTexture;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Error making texture readable: {ex.Message}");
+            return null;
+        }
+    }
 }
