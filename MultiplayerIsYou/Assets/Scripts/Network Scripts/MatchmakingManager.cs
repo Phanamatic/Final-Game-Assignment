@@ -14,65 +14,84 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     public Transform lobbyListParent; // ScrollView Content Parent
     public GameObject lobbyPrefab;   // Prefab for displaying lobby details
     public GameObject matchmakingPanel;
+    public GameObject mainMenuPanel;
     public GameObject lobbyPanel;    // Lobby details panel
+    public GameObject createLobbyPanel; // Panel for creating lobbies
+    public TMP_InputField lobbyNameInput;
     public TMP_Text lobbyNameText, playersConnectedText, publicPrivateText;
     public Image player1Icon, player2Icon;
     public TMP_Text player1Username, player2Username;
-    public Button createGameButton, startGameButton, leaveButton;
+    public GameObject player1Panel, player2Panel; // Panels for player details
+    public Button createGameButton, startGameButton, leaveButton, publicPrivateButton, confirmCreateLobbyButton;
 
+    private bool isLobbyPrivate = false; // Tracks if the lobby is private
+    private bool isReadyForOperations = false; // Tracks if the client is ready for room operations
     private List<RoomInfo> cachedRoomList = new List<RoomInfo>();
     public MainMenuManager mainMenuManager; // Reference to MainMenuManager
 
     private void Start()
     {
-        // Ensure the player is connected to the Photon Lobby
-        if (!PhotonNetwork.InLobby)
+        if (!PhotonNetwork.IsConnected)
         {
+            Debug.Log("Connecting to Photon Master Server...");
+            PhotonNetwork.ConnectUsingSettings();
+        }
+        else if (!PhotonNetwork.InLobby)
+        {
+            Debug.Log("Joining Lobby...");
             PhotonNetwork.JoinLobby();
         }
     }
 
     private async void Update()
     {
-        // Continuously update the username
         usernameText.text = PhotonNetwork.NickName;
 
-        // Check if the Icon property exists
         if (PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey("Icon"))
         {
-            // Safely retrieve the Icon property as a string
             string iconUrl = PhotonNetwork.LocalPlayer.CustomProperties["Icon"] as string;
-
-            if (!string.IsNullOrEmpty(iconUrl))
+            if (!string.IsNullOrEmpty(iconUrl) && mainMenuManager != null)
             {
-                // Check if the current profileIconImage already matches to avoid redundant downloads
                 if (profileIconImage.sprite == null || !profileIconImage.sprite.name.Equals(iconUrl))
                 {
-                    // Use the DownloadImageFromS3 method from MainMenuManager
-                    if (mainMenuManager != null)
+                    Texture2D texture = await mainMenuManager.DownloadImageFromS3(iconUrl);
+                    if (texture != null)
                     {
-                        Texture2D texture = await mainMenuManager.DownloadImageFromS3(iconUrl);
-                        if (texture != null)
-                        {
-                            profileIconImage.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
-                            profileIconImage.sprite.name = iconUrl; // Tag the sprite with the URL to prevent re-downloading
-                        }
+                        profileIconImage.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
+                        profileIconImage.sprite.name = iconUrl;
                     }
                 }
             }
         }
+
+        createGameButton.gameObject.SetActive(!PhotonNetwork.InRoom);
+    }
+
+    public override void OnConnectedToMaster()
+    {
+        Debug.Log("Connected to Master Server.");
+        PhotonNetwork.JoinLobby();
+    }
+
+    public override void OnJoinedLobby()
+    {
+        Debug.Log($"Joined Lobby: {PhotonNetwork.CurrentLobby.Name}");
+        isReadyForOperations = true;
+    }
+
+    public override void OnDisconnected(DisconnectCause cause)
+    {
+        Debug.LogError($"Disconnected from Photon: {cause}");
     }
 
     public override void OnRoomListUpdate(List<RoomInfo> roomList)
     {
-        // Clear the cached room list and update the UI
         cachedRoomList.Clear();
         foreach (Transform child in lobbyListParent)
         {
             Destroy(child.gameObject);
         }
 
-        // Populate the room list with updated data
         foreach (RoomInfo room in roomList)
         {
             if (!room.RemovedFromList)
@@ -91,8 +110,9 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         lobbyItem.transform.Find("PlayerCount").GetComponent<TMP_Text>().text = $"{room.PlayerCount}/{room.MaxPlayers}";
         lobbyItem.transform.Find("PublicPrivate").GetComponent<TMP_Text>().text = room.IsVisible ? "Public" : "Private";
 
-        // Configure Join Button
         Button joinButton = lobbyItem.transform.Find("JoinButton").GetComponent<Button>();
+        joinButton.onClick.RemoveAllListeners();
+
         if (room.PlayerCount < room.MaxPlayers && !PhotonNetwork.InRoom)
         {
             joinButton.interactable = true;
@@ -111,32 +131,69 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
 
     public void CreateLobby(string lobbyName, bool isPrivate, string password = null)
     {
+        if (!isReadyForOperations)
+        {
+            Debug.LogError("Client is not ready for room operations.");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(lobbyName))
+        {
+            Debug.LogError("Lobby name cannot be empty.");
+            return;
+        }
+
         RoomOptions roomOptions = new RoomOptions
         {
             MaxPlayers = 2,
             IsVisible = !isPrivate,
             CustomRoomProperties = new ExitGames.Client.Photon.Hashtable
             {
-                { "Password", password } // Store the password in custom properties
+                { "Password", password }
             },
-            CustomRoomPropertiesForLobby = new string[] { "Password" } // Expose this property to the lobby
+            CustomRoomPropertiesForLobby = new string[] { "Password" }
         };
 
         PhotonNetwork.CreateRoom(lobbyName, roomOptions);
+        createLobbyPanel.SetActive(false);
+        matchmakingPanel.SetActive(true); // Show the matchmaking panel again
+    }
+
+    public void OnCreateLobbyClicked()
+    {
+        string lobbyName = lobbyNameInput.text;
+        if (string.IsNullOrEmpty(lobbyName))
+        {
+            Debug.LogError("Lobby name cannot be empty.");
+            return;
+        }
+
+        CreateLobby(lobbyName, isLobbyPrivate);
+    }
+
+    public void TogglePublicPrivate()
+    {
+        isLobbyPrivate = !isLobbyPrivate;
+        publicPrivateButton.GetComponentInChildren<TMP_Text>().text = isLobbyPrivate ? "Private" : "Public";
+    }
+
+    public void OpenCreateLobbyPanel()
+    {
+        createLobbyPanel.SetActive(true);
+        matchmakingPanel.SetActive(false);
     }
 
     public override void OnJoinedRoom()
     {
+        Debug.Log($"Player has joined the room: {PhotonNetwork.CurrentRoom.Name}");
         ShowLobbyPanel();
 
-        // Update lobby panel details
         lobbyNameText.text = PhotonNetwork.CurrentRoom.Name;
         publicPrivateText.text = PhotonNetwork.CurrentRoom.IsVisible ? "Public" : "Private";
         UpdateLobbyDetails();
 
-        // Only show the start button for the host
+        lobbyPanel.SetActive(true);
         startGameButton.gameObject.SetActive(PhotonNetwork.IsMasterClient);
-        createGameButton.gameObject.SetActive(false); // Hide Create Game Button
     }
 
     public override void OnPlayerEnteredRoom(Player newPlayer)
@@ -149,21 +206,55 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         UpdateLobbyDetails();
     }
 
-    private void UpdateLobbyDetails()
+    private async void UpdateLobbyDetails()
     {
-        // Update player details
         Player[] players = PhotonNetwork.PlayerList;
+
+        player1Panel.SetActive(players.Length >= 1);
+        player2Panel.SetActive(players.Length == 2);
 
         if (players.Length > 0)
         {
             player1Username.text = players[0].NickName;
-            player1Icon.sprite = (Sprite)players[0].CustomProperties["Icon"];
+
+            if (players[0].CustomProperties.ContainsKey("Icon"))
+            {
+                string iconUrl = players[0].CustomProperties["Icon"] as string;
+                if (!string.IsNullOrEmpty(iconUrl))
+                {
+                    Texture2D texture = await mainMenuManager.DownloadImageFromS3(iconUrl);
+                    if (texture != null)
+                    {
+                        player1Icon.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
+                    }
+                }
+            }
+            else
+            {
+                player1Icon.sprite = null;
+            }
         }
 
         if (players.Length > 1)
         {
             player2Username.text = players[1].NickName;
-            player2Icon.sprite = (Sprite)players[1].CustomProperties["Icon"];
+
+            if (players[1].CustomProperties.ContainsKey("Icon"))
+            {
+                string iconUrl = players[1].CustomProperties["Icon"] as string;
+                if (!string.IsNullOrEmpty(iconUrl))
+                {
+                    Texture2D texture = await mainMenuManager.DownloadImageFromS3(iconUrl);
+                    if (texture != null)
+                    {
+                        player2Icon.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
+                    }
+                }
+            }
+            else
+            {
+                player2Icon.sprite = null;
+            }
         }
         else
         {
@@ -172,26 +263,23 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         }
 
         playersConnectedText.text = $"{PhotonNetwork.CurrentRoom.PlayerCount}/{PhotonNetwork.CurrentRoom.MaxPlayers}";
-
-        // Hide the start button if less than 2 players
         startGameButton.gameObject.SetActive(PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount == 2);
     }
 
     public void LeaveLobby()
     {
+        Debug.Log($"Player has left the room: {PhotonNetwork.CurrentRoom.Name}");
         PhotonNetwork.LeaveRoom();
         ShowMatchmakingPanel();
     }
 
     public override void OnLeftRoom()
     {
-        // Clear the lobby panel and return to matchmaking
         player1Username.text = "";
         player2Username.text = "";
         player1Icon.sprite = null;
         player2Icon.sprite = null;
         playersConnectedText.text = "";
-        createGameButton.gameObject.SetActive(true); // Show Create Game Button
         ShowMatchmakingPanel();
     }
 
@@ -206,12 +294,12 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     public void ShowMatchmakingPanel()
     {
         matchmakingPanel.SetActive(true);
+        createLobbyPanel.SetActive(false);
         lobbyPanel.SetActive(false);
     }
 
     public void ShowLobbyPanel()
     {
-        matchmakingPanel.SetActive(false);
         lobbyPanel.SetActive(true);
     }
 
