@@ -1,53 +1,75 @@
+using Photon.Pun;
+using Photon.Realtime;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Player2Controller : MonoBehaviour
+public class Player2Controller : MonoBehaviourPunCallbacks
 {
     private Vector3 moveDirection;
     public float pushDistance = 1f; // Distance to push objects
 
     void Update()
+{
+    // Ensure only the owner can control the GameObject
+    if (photonView.IsMine && gameObject.CompareTag("You2")) // For Player2
     {
-        if (gameObject.CompareTag("You2"))
-        {
-            HandleMovementInput();
-        }
+        HandleMovementInput();
     }
+}
 
+    // This method will handle movement input from the player
     void HandleMovementInput()
     {
         moveDirection = Vector3.zero;
 
-        if (Input.GetKeyDown(KeyCode.UpArrow)) moveDirection = Vector3.up;
-        if (Input.GetKeyDown(KeyCode.DownArrow)) moveDirection = Vector3.down;
-        if (Input.GetKeyDown(KeyCode.LeftArrow)) moveDirection = Vector3.left;
-        if (Input.GetKeyDown(KeyCode.RightArrow)) moveDirection = Vector3.right;
+        if (Input.GetKeyDown(KeyCode.W))
+        {
+            moveDirection = Vector3.up; // Move up by 1 unit
+        }
+        if (Input.GetKeyDown(KeyCode.S))
+        {
+            moveDirection = Vector3.down; // Move down by 1 unit
+        }
+        if (Input.GetKeyDown(KeyCode.A))
+        {
+            moveDirection = Vector3.left; // Move left by 1 unit
+        }
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            moveDirection = Vector3.right; // Move right by 1 unit
+        }
 
+        // Move the player by 1 unit in the input direction
         if (moveDirection != Vector3.zero)
         {
             MovePlayer();
         }
     }
 
+    // Move the player by 1 unit
     void MovePlayer()
     {
-        Vector3 targetPosition = transform.position + moveDirection;
-        Collider2D hitCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
+        Vector3 targetPosition = transform.position + moveDirection; // Calculate the new position
+
+        // Check if there's an object at the target position
+        Collider2D hitCollider = Physics2D.OverlapCircle(targetPosition, 0.1f); // Check for any collider at the target position
 
         if (hitCollider != null)
         {
             if (hitCollider.CompareTag("Stop"))
             {
+                // If there's a "Stop" tagged object, don't move
                 Debug.Log("Blocked by a Stop object!");
                 return;
             }
             else if (IsPushable(hitCollider.gameObject))
             {
+                // Try to push the object and any adjacent pushable objects
                 if (CanPushChain(hitCollider.gameObject, moveDirection))
                 {
                     PushObject(hitCollider.gameObject, moveDirection);
-                    transform.position = targetPosition;
+                    transform.position = targetPosition; // Move the player after pushing
                 }
                 else
                 {
@@ -56,46 +78,35 @@ public class Player2Controller : MonoBehaviour
             }
             else
             {
+                // If the object is neither pushable nor tagged "Stop", move the player normally
                 transform.position = targetPosition;
             }
         }
         else
         {
+            // If no object in the way, move the player normally
             transform.position = targetPosition;
         }
     }
 
+    // Check if the entire chain of pushable objects can be pushed
     bool CanPushChain(GameObject firstObject, Vector3 direction)
     {
         Queue<GameObject> toPush = new Queue<GameObject>();
         toPush.Enqueue(firstObject);
 
+        // Process the objects in the queue
         while (toPush.Count > 0)
         {
             GameObject obj = toPush.Dequeue();
             Vector3 targetPosition = obj.transform.position + direction * pushDistance;
 
-            // Check if the target position is blocked
-            Collider2D pushBlockCheck = Physics2D.OverlapCircle(targetPosition, 0.2f);
-
-            if (pushBlockCheck != null)
+            // Check if the push target position is blocked by a Stop object
+            Collider2D pushBlockCheck = Physics2D.OverlapCircle(targetPosition, 0.1f);
+            if (pushBlockCheck != null && pushBlockCheck.CompareTag("Stop"))
             {
-                // Block if the target is "Stop"
-                if (pushBlockCheck.CompareTag("Stop"))
-                {
-                    Debug.Log($"Blocked by a Stop object at {targetPosition}.");
-                    return false;
-                }
-
-                // Special handling for "Shut"
-                if (pushBlockCheck.CompareTag("Shut"))
-                {
-                    if (!HasOpenTag(obj))
-                    {
-                        Debug.Log($"Cannot push into Shut at {targetPosition} without Open or OpenAndPush!");
-                        return false;
-                    }
-                }
+                // Found a Stop object, return false as we cannot push past it
+                return false;
             }
 
             // Check for adjacent pushable objects
@@ -109,45 +120,47 @@ public class Player2Controller : MonoBehaviour
             }
         }
 
-        return true;
+        return true; // All checks passed, the chain can be pushed
     }
 
+    // Push the object and handle pushing of adjacent pushable objects
     void PushObject(GameObject obj, Vector3 direction)
+{
+    Vector3 pushTargetPosition = obj.transform.position + direction * pushDistance;
+
+    // Move the object on all clients
+    photonView.RPC("RPC_MoveObject", RpcTarget.All, obj.GetComponent<PhotonView>().ViewID, pushTargetPosition);
+
+    // Check for adjacent pushable objects in the same direction and push them
+    Collider2D adjacentCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
+    if (adjacentCollider != null && IsPushable(adjacentCollider.gameObject))
     {
-        Vector3 pushTargetPosition = obj.transform.position + direction * pushDistance;
-        obj.transform.position = pushTargetPosition;
-
-        // Check for adjacent pushable objects and push them
-        Collider2D adjacentCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
-        if (adjacentCollider != null && IsPushable(adjacentCollider.gameObject))
-        {
-            PushObject(adjacentCollider.gameObject, direction);
-        }
-
-        // Destroy Shut objects if pushed into them by Open or OpenAndPush objects
-        Collider2D shutCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
-        if (shutCollider != null && shutCollider.CompareTag("Shut"))
-        {
-            if (HasOpenTag(obj)) // Check for Open or OpenAndPush tags directly on the object
-            {
-                Destroy(shutCollider.gameObject);
-                Debug.Log($"Shut object at {pushTargetPosition} destroyed!");
-            }
-            else
-            {
-                Debug.Log($"Shut object at {pushTargetPosition} not destroyed - missing Open or OpenAndPush!");
-            }
-        }
+        PushObject(adjacentCollider.gameObject, direction);
     }
+}
 
+// RPC to move object on all clients
+[PunRPC]
+void RPC_MoveObject(int objectViewID, Vector3 newPosition)
+{
+    PhotonView objView = PhotonView.Find(objectViewID);
+    if (objView != null)
+    {
+        objView.transform.position = newPosition;
+    }
+}
+
+
+    // Check if the object has a child with the tag "Word" (meaning it's pushable)
     bool IsPushable(GameObject obj)
     {
-        return obj.CompareTag("Push") || obj.CompareTag("OpenAndPush");
-    }
-
-    bool HasOpenTag(GameObject obj)
-    {
-        // Check if the object has the Open or OpenAndPush tags
-        return obj.CompareTag("Open") || obj.CompareTag("OpenAndPush");
+        foreach (Transform child in obj.transform)
+        {
+            if (child.CompareTag("Word"))
+            {
+                return true; // Object is pushable if a child has the tag "Word"
+            }
+        }
+        return false; // Not pushable otherwise
     }
 }

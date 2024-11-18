@@ -70,3 +70,24 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# Ignore environment variables file
+.env
+
+# Ignore AWS credentials stored locally
+*.aws
+
+# Ignore any file or directory containing sensitive information
+secrets.json
+config.json
+aws_credentials/
+
+# Ignore backups or sensitive system files
+*.bak
+*.swp
+*.tmp
+
+# Ignore potential custom credential files
+credentials.txt
+keys.txt
+
