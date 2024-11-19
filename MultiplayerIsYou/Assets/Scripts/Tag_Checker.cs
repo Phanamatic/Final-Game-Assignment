@@ -19,9 +19,10 @@ public class Tag_Checker : MonoBehaviour
         CheckPillarSequences();
         CheckDoorSequences();
         CheckKeySequences();
+        CheckStarSequences();
 
     }
-    
+
     void CheckKeySequences()
     {
         bool KeyIsOpen = CheckSpecificSequence("Word_Key", "Word_Is", "Word_Open", "Key", "Open");
@@ -54,6 +55,38 @@ public class Tag_Checker : MonoBehaviour
         }
     }
 
+    void CheckStarSequences()
+    {
+        bool StarIsOpen = CheckSpecificSequence("Word_Star", "Word_Is", "Word_Open", "Star", "Open");
+        bool StarIsPush = CheckSpecificSequence("Word_Star", "Word_Is", "Word_Push", "Star", "Push");
+        bool StarIsWin = CheckSpecificSequence("Word_Star", "Word_Is", "Word_Win", "Star", "Win");
+
+        if (!StarIsOpen && !StarIsPush && !StarIsWin)
+        {
+            SetParentTagsForAll(false, "Star", "Untagged");
+        }
+        else
+        {
+            // Check combined conditions first
+            if (StarIsPush && StarIsOpen)
+            {
+                SetParentTagsForAll(true, "Star", "OpenAndPush");
+            }
+            else if (StarIsOpen)
+            {
+                SetParentTagsForAll(true, "Star", "Open");
+            }
+            else if (StarIsPush)
+            {
+                SetParentTagsForAll(true, "Star", "Push");
+            }
+            else if (StarIsWin)
+            {
+                SetParentTagsForAll(true, "Star", "Win");
+            }
+        }
+    }
+
     void CheckDoorSequences()
     {
         bool DoorIsShut = CheckSpecificSequence("Word_Door", "Word_Is", "Word_Shut", "Door", "Shut");
@@ -67,7 +100,12 @@ public class Tag_Checker : MonoBehaviour
         }
         else
         {
-            if (DoorIsWin)
+            if (DoorIsShut && DoorIsStop)
+            {
+                // Set the tag of Wall to "Stop"
+                SetParentTagsForAll(true, "Door", "Shut");
+            }
+            else if (DoorIsWin)
             {
                 SetParentTagsForAll(true, "Door", "Win");
             }
@@ -86,17 +124,12 @@ public class Tag_Checker : MonoBehaviour
             else if (DoorIsWin && DoorIsStop)
             {
                 // Set the tag of Wall to "Stop"
-                SetParentTagsForAll(true, "Pillar", "Stop");
-            }
-            else if (DoorIsShut && DoorIsStop)
-            {
-                // Set the tag of Wall to "Stop"
-                SetParentTagsForAll(true, "Pillar", "Shut");
+                SetParentTagsForAll(true, "Door", "Stop");
             }
             else if (DoorIsPush && DoorIsStop)
             {
                 // Set the tag of Wall to "Stop"
-                SetParentTagsForAll(true, "Pillar", "Push");
+                SetParentTagsForAll(true, "Door", "Push");
             }
         }
     }
@@ -107,17 +140,28 @@ public class Tag_Checker : MonoBehaviour
         bool PillarIsPush = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_Push", "Pillar", "Push");
         bool PillarIsThem1 = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_Them1", "Pillar", "You1");
         bool PillarIsYou1 = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_You1", "Pillar", "You1");
+        bool PillarIsOpen = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_Open", "Pillar", "Open");
 
-        if (!PillarIsDefeat && !PillarIsPush && !PillarIsThem1 && !PillarIsYou1)
+
+
+        if (!PillarIsDefeat && !PillarIsPush && !PillarIsThem1 && !PillarIsYou1 && !PillarIsOpen)
         {
             SetParentTagsForAll(false, "Pillar", "Untagged");
         }
         else
         {
             // At least one sequence is found; set to the appropriate tag
-            if (PillarIsYou1)
+            if (PillarIsPush && PillarIsOpen)
+            {
+                SetParentTagsForAll(true, "Pillar", "OpenAndPush");
+            }
+            else if (PillarIsYou1)
             {
                 SetParentTagsForAll(true, "Pillar", "You1");
+            }
+            else if (PillarIsOpen)
+            {
+                SetParentTagsForAll(true, "Pillar", "Open");
             }
             else if (PillarIsDefeat)
             {
@@ -166,18 +210,34 @@ public class Tag_Checker : MonoBehaviour
     {
         bool RockIsStop = CheckSpecificSequence("Word_Rock", "Word_Is", "Word_Stop", "Rock", "Stop");
         bool RockIsThem1 = CheckSpecificSequence("Word_Rock", "Word_Is", "Word_Them1", "Rock", "You1");
+        bool RockIsPush = CheckSpecificSequence("Word_Rock", "Word_Is", "Word_Push", "Rock", "Push");
+        bool RockIsOpen = CheckSpecificSequence("Word_Rock", "Word_Is", "Word_Open", "Rock", "Open");
+
+
 
         // If neither sequence is found, set Wall objects to "Untagged"
-        if (!RockIsStop && !RockIsThem1)
+        if (!RockIsStop && !RockIsThem1 && !RockIsOpen && !RockIsPush)
         {
             SetParentTagsForAll(false, "Rock", "Untagged");
         }
         else
         {
             // At least one sequence is found; set to the appropriate tag
-            if (RockIsThem1)
+            if (RockIsPush && RockIsOpen)
+            {
+                SetParentTagsForAll(true, "Rock", "OpenAndPush");
+            }
+            else if (RockIsOpen)
+            {
+                SetParentTagsForAll(true, "Rock", "Open");
+            }
+            else if (RockIsThem1)
             {
                 SetParentTagsForAll(true, "Rock", "You1");
+            }
+            else if (RockIsPush)
+            {
+                SetParentTagsForAll(true, "Rock", "Push");
             }
             else if (RockIsStop)
             {

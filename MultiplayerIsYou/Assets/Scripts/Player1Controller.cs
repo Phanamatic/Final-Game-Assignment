@@ -125,14 +125,15 @@ public class Player1Controller : MonoBehaviour
             PushObject(adjacentCollider.gameObject, direction);
         }
 
-        // Destroy Shut objects if pushed into them by OpenAndPush objects
+        // Destroy Shut and OpenAndPush objects if pushed into each other
         Collider2D shutCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
         if (shutCollider != null && shutCollider.CompareTag("Shut"))
         {
-            if (HasOpenAndPushTag(obj)) // Only objects with "OpenAndPush" tag destroy Shut objects
+            if (HasOpenAndPushTag(obj)) // Both objects get destroyed
             {
-                Destroy(shutCollider.gameObject);
-                Debug.Log($"Shut object at {pushTargetPosition} destroyed!");
+                Destroy(shutCollider.gameObject); // Destroy Shut object
+                Destroy(obj); // Destroy OpenAndPush object
+                Debug.Log($"Shut and OpenAndPush objects destroyed at {pushTargetPosition}!");
             }
             else
             {
