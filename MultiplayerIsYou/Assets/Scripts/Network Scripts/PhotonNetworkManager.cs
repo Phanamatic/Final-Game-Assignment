@@ -8,11 +8,14 @@ public class PhotonNetworkManager : MonoBehaviourPunCallbacks
     public GameObject player2Prefab; // Assign Player 2 prefab in the inspector
     public Transform player1SpawnPoint; // Assign Player 1 spawn point in the inspector
     public Transform player2SpawnPoint; // Assign Player 2 spawn point in the inspector
+    public Camera camera1; // Assign Player 1 camera in the inspector
+    public Camera camera2; // Assign Player 2 camera in the inspector
 
     private void Start()
     {
         if (!PhotonNetwork.IsConnected)
         {
+            PhotonNetwork.AutomaticallySyncScene = true; // Ensure scene synchronization
             PhotonNetwork.ConnectUsingSettings();
         }
     }
@@ -28,22 +31,45 @@ public class PhotonNetworkManager : MonoBehaviourPunCallbacks
     }
 
     public override void OnJoinedRoom()
-    {
-        Debug.Log($"Joined Room as Player {PhotonNetwork.LocalPlayer.ActorNumber}");
+{
+    Debug.Log($"Joined Room as Player {PhotonNetwork.LocalPlayer.ActorNumber}");
 
-        if (PhotonNetwork.LocalPlayer.ActorNumber == 1)
+    GameObject playerInstance;
+    if (PhotonNetwork.LocalPlayer.ActorNumber == 1)
+    {
+        playerInstance = PhotonNetwork.Instantiate(player1Prefab.name, player1SpawnPoint.position, player1SpawnPoint.rotation);
+        camera1.gameObject.SetActive(true); // Enable Player 1's camera
+        camera2.gameObject.SetActive(false); // Disable Player 2's camera
+    }
+    else if (PhotonNetwork.LocalPlayer.ActorNumber == 2)
+    {
+        playerInstance = PhotonNetwork.Instantiate(player2Prefab.name, player2SpawnPoint.position, player2SpawnPoint.rotation);
+        camera2.gameObject.SetActive(true); // Enable Player 2's camera
+        camera1.gameObject.SetActive(false); // Disable Player 1's camera
+    }
+    else
+    {
+        Debug.LogError("Unexpected number of players.");
+        return;
+    }
+
+    // Assign PhotonView to ensure ownership and synchronization
+    PhotonView photonView = playerInstance.GetComponent<PhotonView>();
+    if (photonView != null && photonView.IsMine)
+    {
+        Debug.Log("Player instance successfully instantiated and assigned.");
+    }
+}
+
+    private void AssignCameraToLocalPlayer(GameObject playerInstance)
+    {
+        Camera[] cameras = playerInstance.GetComponentsInChildren<Camera>(true);
+        foreach (Camera cam in cameras)
         {
-            // Instantiate Player 1 at the designated spawn point
-            PhotonNetwork.Instantiate(player1Prefab.name, player1SpawnPoint.position, player1SpawnPoint.rotation);
-        }
-        else if (PhotonNetwork.LocalPlayer.ActorNumber == 2)
-        {
-            // Instantiate Player 2 at the designated spawn point
-            PhotonNetwork.Instantiate(player2Prefab.name, player2SpawnPoint.position, player2SpawnPoint.rotation);
-        }
-        else
-        {
-            Debug.LogError("Unexpected number of players.");
+            if (cam != null)
+            {
+                cam.gameObject.SetActive(true);
+            }
         }
     }
 }
