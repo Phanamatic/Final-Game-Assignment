@@ -108,14 +108,18 @@ public class Tag_Checker : MonoBehaviour
         bool PillarIsThem1 = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_Them1", "Pillar", "You1");
         bool PillarIsYou1 = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_You1", "Pillar", "You1");
 
-        if (!PillarIsDefeat && !PillarIsPush && !PillarIsThem1)
+        if (!PillarIsDefeat && !PillarIsPush && !PillarIsThem1 && !PillarIsYou1)
         {
             SetParentTagsForAll(false, "Pillar", "Untagged");
         }
         else
         {
             // At least one sequence is found; set to the appropriate tag
-            if (PillarIsDefeat)
+            if (PillarIsYou1)
+            {
+                SetParentTagsForAll(true, "Pillar", "You1");
+            }
+            else if (PillarIsDefeat)
             {
                 SetParentTagsForAll(true, "Pillar", "Defeat");
             }
@@ -124,10 +128,6 @@ public class Tag_Checker : MonoBehaviour
                 SetParentTagsForAll(true, "Pillar", "Push");
             }
             else if (PillarIsThem1)
-            {
-                SetParentTagsForAll(true, "Pillar", "You1");
-            }
-            else if (PillarIsYou1)
             {
                 SetParentTagsForAll(true, "Pillar", "You1");
             }
@@ -321,7 +321,7 @@ public class Tag_Checker : MonoBehaviour
                             (IsVerticallyAdjacent(first.transform.position, middle.transform.position) &&
                              IsVerticallyAdjacent(middle.transform.position, last.transform.position)))
                         {
-                            //Debug.Log($"Sequence found: {first.tag} - {middle.tag} - {last.tag}");
+                            Debug.Log($"Sequence found: {first.tag} - {middle.tag} - {last.tag}");
                             return true; // Sequence found
                         }
                     }
@@ -355,9 +355,9 @@ public class Tag_Checker : MonoBehaviour
                 if (parentObject != null)
                 {
                     parentObject.tag = isSequence ? newTag : "Untagged";
-                    //Debug.Log(isSequence
-                        //? $"Sequence found: Parent's tag set to '{newTag}'"
-                       // : "Broken sequence: Parent's tag set to 'Untagged'");
+                    Debug.Log(isSequence
+                        ? $"Sequence found: Parent's tag set to '{newTag}'"
+                        : "Broken sequence: Parent's tag set to 'Untagged'");
                 }
                 else
                 {

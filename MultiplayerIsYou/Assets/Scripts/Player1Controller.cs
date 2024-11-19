@@ -35,6 +35,18 @@ public class Player1Controller : MonoBehaviour
         Vector3 targetPosition = transform.position + moveDirection;
         Collider2D hitCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
 
+        // Check if the player is colliding with a Shut object
+        if (hitCollider != null && hitCollider.CompareTag("Shut"))
+        {
+            // Only block movement if it's not a "OpenAndPush" object
+            if (!HasOpenAndPushTag(hitCollider.gameObject))
+            {
+                Debug.Log("Blocked by a Shut object!");
+                return; // Prevent moving into Shut objects
+            }
+        }
+
+        // Handle other collisions and pushing logic
         if (hitCollider != null)
         {
             if (hitCollider.CompareTag("Stop"))
@@ -75,26 +87,15 @@ public class Player1Controller : MonoBehaviour
             GameObject obj = toPush.Dequeue();
             Vector3 targetPosition = obj.transform.position + direction * pushDistance;
 
-            // Check if the target position is blocked
-            Collider2D pushBlockCheck = Physics2D.OverlapCircle(targetPosition, 0.1f);
-
-            if (pushBlockCheck != null)
+            // Check if the target position is blocked by a Shut object
+            Collider2D pushBlockCheck = Physics2D.OverlapCircle(targetPosition, 0.2f);
+            if (pushBlockCheck != null && pushBlockCheck.CompareTag("Shut"))
             {
-                // Block if the target is "Stop"
-                if (pushBlockCheck.CompareTag("Stop"))
+                // If it's an "OpenAndPush" object, don't block
+                if (!HasOpenAndPushTag(obj))
                 {
-                    Debug.Log($"Blocked by a Stop object at {targetPosition}.");
+                    Debug.Log($"Blocked by a Shut object at {targetPosition}.");
                     return false;
-                }
-
-                // Special handling for "Shut"
-                if (pushBlockCheck.CompareTag("Shut"))
-                {
-                    if (!HasOpenTag(obj)) // Check for Open or OpenAndPush tags directly
-                    {
-                        Debug.Log($"Cannot push into Shut at {targetPosition} without Open or OpenAndPush!");
-                        return false;
-                    }
                 }
             }
 
@@ -124,31 +125,45 @@ public class Player1Controller : MonoBehaviour
             PushObject(adjacentCollider.gameObject, direction);
         }
 
-        // Destroy Shut objects if pushed into them by Open or OpenAndPush objects
+        // Destroy Shut objects if pushed into them by OpenAndPush objects
         Collider2D shutCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
         if (shutCollider != null && shutCollider.CompareTag("Shut"))
         {
-            if (HasOpenTag(obj)) // Check for Open or OpenAndPush tags directly on the object
+            if (HasOpenAndPushTag(obj)) // Only objects with "OpenAndPush" tag destroy Shut objects
             {
                 Destroy(shutCollider.gameObject);
                 Debug.Log($"Shut object at {pushTargetPosition} destroyed!");
             }
             else
             {
-                Debug.Log($"Shut object at {pushTargetPosition} not destroyed - missing Open or OpenAndPush!");
+                Debug.Log($"Shut object at {pushTargetPosition} not destroyed - missing OpenAndPush!");
             }
         }
     }
 
     bool IsPushable(GameObject obj)
     {
-        // Check for Push or OpenAndPush tags directly
-        return obj.CompareTag("Push") || obj.CompareTag("OpenAndPush");
+        // Check if the object has the "Push" or "OpenAndPush" tag, or if it has any child with the "Word" tag
+        if (obj.CompareTag("Push") || obj.CompareTag("OpenAndPush"))
+        {
+            return true;
+        }
+
+        // Also check if the object has any child with the "Word" tag
+        foreach (Transform child in obj.transform)
+        {
+            if (child.CompareTag("Word"))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    bool HasOpenTag(GameObject obj)
+    bool HasOpenAndPushTag(GameObject obj)
     {
-        // Check if the object has the Open or OpenAndPush tags
-        return obj.CompareTag("Open") || obj.CompareTag("OpenAndPush");
+        // Only objects with "OpenAndPush" tag should push through Shut objects
+        return obj.CompareTag("OpenAndPush");
     }
 }
