@@ -21,10 +21,10 @@ public class Player2Controller : MonoBehaviourPunCallbacks
     {
         moveDirection = Vector3.zero;
 
-        if (Input.GetKeyDown(KeyCode.UpArrow)) moveDirection = Vector3.up;
-        if (Input.GetKeyDown(KeyCode.DownArrow)) moveDirection = Vector3.down;
-        if (Input.GetKeyDown(KeyCode.LeftArrow)) moveDirection = Vector3.left;
-        if (Input.GetKeyDown(KeyCode.RightArrow)) moveDirection = Vector3.right;
+        if (Input.GetKeyDown(KeyCode.W)) moveDirection = Vector3.up;
+        if (Input.GetKeyDown(KeyCode.S)) moveDirection = Vector3.down;
+        if (Input.GetKeyDown(KeyCode.A)) moveDirection = Vector3.left;
+        if (Input.GetKeyDown(KeyCode.D)) moveDirection = Vector3.right;
 
         if (moveDirection != Vector3.zero)
         {
