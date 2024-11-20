@@ -342,7 +342,6 @@ GameObject:
   - component: {fileID: 40484178}
   - component: {fileID: 40484177}
   - component: {fileID: 40484176}
-  - component: {fileID: 40484175}
   m_Layer: 5
   m_Name: Button
   m_TagString: Untagged
@@ -370,18 +369,6 @@ RectTransform:
   m_AnchoredPosition: {x: 836, y: 75}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &40484175
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 40484173}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f485521f450be5b49bf483c95d61d97c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &40484176
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -425,19 +412,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 40484177}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 40484175}
-        m_TargetAssemblyTypeName: MenuScript, Assembly-CSharp
-        m_MethodName: LoadMainMenu
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!114 &40484177
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2860,7 +2835,6 @@ GameObject:
   - component: {fileID: 348103530}
   - component: {fileID: 348103529}
   - component: {fileID: 348103528}
-  - component: {fileID: 348103527}
   m_Layer: 5
   m_Name: Button (1)
   m_TagString: Untagged
@@ -2888,18 +2862,6 @@ RectTransform:
   m_AnchoredPosition: {x: -124, y: -465}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &348103527
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 348103525}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f485521f450be5b49bf483c95d61d97c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &348103528
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2943,19 +2905,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 348103529}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 348103527}
-        m_TargetAssemblyTypeName: MenuScript, Assembly-CSharp
-        m_MethodName: LoadMainMenu
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!114 &348103529
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6583,7 +6533,8 @@ MonoBehaviour:
   Synchronization: 3
   OwnershipTransfer: 0
   observableSearch: 2
-  ObservedComponents: []
+  ObservedComponents:
+  - {fileID: 714280683}
   sceneViewId: 34
   InstantiationId: 0
   isRuntimeInstantiated: 0
@@ -8148,6 +8099,8 @@ GameObject:
   - component: {fileID: 1049078398}
   - component: {fileID: 1049078397}
   - component: {fileID: 1049078400}
+  - component: {fileID: 1049078402}
+  - component: {fileID: 1049078401}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -8273,6 +8226,45 @@ MonoBehaviour:
     mipBias: 0
     varianceClampScale: 0.9
     contrastAdaptiveSharpening: 0
+--- !u!114 &1049078401
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1049078396}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 627855c7f81362d41938ffe0b1475957, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_SynchronizePosition: 1
+  m_SynchronizeRotation: 1
+  m_SynchronizeScale: 0
+  m_UseLocal: 1
+--- !u!114 &1049078402
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1049078396}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ObservedComponentsFoldoutOpen: 1
+  Group: 0
+  prefixField: -1
+  Synchronization: 3
+  OwnershipTransfer: 0
+  observableSearch: 2
+  ObservedComponents:
+  - {fileID: 1049078401}
+  sceneViewId: 61
+  InstantiationId: 0
+  isRuntimeInstantiated: 0
 --- !u!1 &1080341944
 GameObject:
   m_ObjectHideFlags: 0
@@ -13322,6 +13314,8 @@ GameObject:
   - component: {fileID: 1769208250}
   - component: {fileID: 1769208249}
   - component: {fileID: 1769208248}
+  - component: {fileID: 1769208252}
+  - component: {fileID: 1769208251}
   m_Layer: 0
   m_Name: Second Camera
   m_TagString: Untagged
@@ -13439,6 +13433,44 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1769208251
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1769208247}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 627855c7f81362d41938ffe0b1475957, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_SynchronizePosition: 1
+  m_SynchronizeRotation: 1
+  m_SynchronizeScale: 0
+  m_UseLocal: 1
+--- !u!114 &1769208252
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1769208247}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ObservedComponentsFoldoutOpen: 1
+  Group: 0
+  prefixField: -1
+  Synchronization: 3
+  OwnershipTransfer: 0
+  observableSearch: 2
+  ObservedComponents: []
+  sceneViewId: 60
+  InstantiationId: 0
+  isRuntimeInstantiated: 0
 --- !u!1 &1786732394
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 using Photon.Pun;
 
@@ -8,16 +7,37 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
 {
     void Update()
     {
-        if (photonView.IsMine) // Only run tag checks on the master client
+        if (photonView.IsMine) // Run only on the master client
         {
-            // Check sequences for Baba and Flag using the same logic as the Wall sequences
+            // Checking sequences for various objects
             photonView.RPC("RPC_CheckObjectSequences", RpcTarget.All, "Word_Flag", "Word_Is", "Word_Win", "Flag", "Win");
             photonView.RPC("RPC_CheckObjectSequences", RpcTarget.All, "Word_Skull", "Word_Is", "Word_Defeat", "Skull", "Defeat");
+            photonView.RPC("RPC_CheckObjectSequences", RpcTarget.All, "Word_Star", "Word_Is", "Word_Defeat", "Star", "Defeat");
 
+            // Checking specific object sequences
             photonView.RPC("RPC_CheckRockSequences", RpcTarget.All);
             photonView.RPC("RPC_CheckBabaSequences", RpcTarget.All);
             photonView.RPC("RPC_CheckWallSequences", RpcTarget.All);
             photonView.RPC("RPC_CheckLalaSequences", RpcTarget.All);
+            photonView.RPC("RPC_CheckFlagSequences", RpcTarget.All);
+            photonView.RPC("RPC_CheckPillarSequences", RpcTarget.All);
+            photonView.RPC("RPC_CheckDoorSequences", RpcTarget.All);
+            photonView.RPC("RPC_CheckKeySequences", RpcTarget.All);
+        }
+    }
+
+    [PunRPC]
+    void RPC_CheckObjectSequences(string firstTag, string middleTag, string lastTag, string targetTag, string newParentTag)
+    {
+        bool sequenceFound = CheckSpecificSequence(firstTag, middleTag, lastTag, targetTag, newParentTag);
+
+        if (!sequenceFound)
+        {
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, false, targetTag, "Untagged");
+        }
+        else
+        {
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, targetTag, newParentTag);
         }
     }
 
@@ -29,22 +49,11 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
 
         if (!RockIsStop && !RockIsThem1)
         {
-            photonView.RPC("SetParentTagsForAll", RpcTarget.All, false, "Wall", "Untagged");
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, false, "Rock", "Untagged");
         }
-        else
+        else if (RockIsStop || RockIsThem1)
         {
-            if (RockIsThem1)
-            {
-                photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Wall", "You2");
-            }
-            else if (RockIsStop)
-            {
-                photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Wall", "Stop");
-            }
-            else if (RockIsThem1 && RockIsStop)
-            {
-                photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Wall", "Stop");
-            }
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Rock", RockIsStop ? "Stop" : "You1");
         }
     }
 
@@ -54,18 +63,13 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
         bool LalaIsYou2 = CheckSpecificSequence("Word_Lala", "Word_Is", "Word_You2", "Lala", "You2");
         bool LalaIsThem2 = CheckSpecificSequence("Word_Lala", "Word_Is", "Word_Them2", "Lala", "You2");
 
-        // If neither sequence is found, set Lala objects to "Untagged"
         if (!LalaIsYou2 && !LalaIsThem2)
         {
             photonView.RPC("SetParentTagsForAll", RpcTarget.All, false, "Lala", "Untagged");
         }
         else
         {
-            // At least one sequence is found; set to the appropriate tag
-            if (LalaIsThem2 || LalaIsYou2)
-            {
-                photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Lala", "You2");
-            }
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Lala", "You2");
         }
     }
 
@@ -75,65 +79,95 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
         bool BabaIsYou1 = CheckSpecificSequence("Word_Baba", "Word_Is", "Word_You1", "Baba", "You1");
         bool BabaIsThem1 = CheckSpecificSequence("Word_Baba", "Word_Is", "Word_Them1", "Baba", "You1");
 
-        // If neither sequence is found, set Baba objects to "Untagged"
         if (!BabaIsYou1 && !BabaIsThem1)
         {
             photonView.RPC("SetParentTagsForAll", RpcTarget.All, false, "Baba", "Untagged");
         }
         else
         {
-            // At least one sequence is found; set to the appropriate tag
-            if (BabaIsThem1 || BabaIsYou1)
-            {
-                photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Baba", "You1");
-            }
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Baba", "You1");
         }
     }
 
     [PunRPC]
     void RPC_CheckWallSequences()
     {
-        bool wallIsStopFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_Stop", "Wall", "Stop");
-        bool wallIsYouFound = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_Them2", "Wall", "You2");
+        bool WallIsStop = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_Stop", "Wall", "Stop");
+        bool WallIsYou = CheckSpecificSequence("Word_Wall", "Word_Is", "Word_Them2", "Wall", "You2");
 
-        // If neither sequence is found, set Wall objects to "Untagged"
-        if (!wallIsStopFound && !wallIsYouFound)
+        if (!WallIsStop && !WallIsYou)
         {
             photonView.RPC("SetParentTagsForAll", RpcTarget.All, false, "Wall", "Untagged");
         }
         else
         {
-            // At least one sequence is found; set to the appropriate tag
-            if (wallIsYouFound)
-            {
-                photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Wall", "You2");
-            }
-            else if (wallIsStopFound)
-            {
-                photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Wall", "Stop");
-            }
-            else if (wallIsYouFound && wallIsStopFound)
-            {
-                // Set the tag of Wall to "Stop"
-                photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Wall", "Stop");
-            }
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Wall", WallIsStop ? "Stop" : "You2");
         }
     }
 
     [PunRPC]
-    void RPC_CheckObjectSequences(string firstTag, string middleTag, string lastTag, string targetTag, string newParentTag)
+    void RPC_CheckFlagSequences()
     {
-        bool sequenceFound = CheckSpecificSequence(firstTag, middleTag, lastTag, targetTag, newParentTag);
+        bool FlagIsStop = CheckSpecificSequence("Word_Flag", "Word_Is", "Word_Stop", "Flag", "Stop");
+        bool FlagIsWin = CheckSpecificSequence("Word_Flag", "Word_Is", "Word_Win", "Flag", "Win");
 
-        // If no sequence is found, set the parent tags to untagged
-        if (!sequenceFound)
+        if (!FlagIsStop && !FlagIsWin)
         {
-            photonView.RPC("SetParentTagsForAll", RpcTarget.All, false, targetTag, "Untagged");
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, false, "Flag", "Untagged");
         }
         else
         {
-            // Sequence found, set the parent tag to the newParentTag
-            photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, targetTag, newParentTag);
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Flag", FlagIsStop ? "Stop" : "Win");
+        }
+    }
+
+    [PunRPC]
+    void RPC_CheckPillarSequences()
+    {
+        bool PillarIsDefeat = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_Defeat", "Pillar", "Defeat");
+        bool PillarIsPush = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_Push", "Pillar", "Push");
+        bool PillarIsYou1 = CheckSpecificSequence("Word_Pillar", "Word_Is", "Word_You1", "Pillar", "You1");
+
+        if (!PillarIsDefeat && !PillarIsPush && !PillarIsYou1)
+        {
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, false, "Pillar", "Untagged");
+        }
+        else
+        {
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Pillar", PillarIsDefeat ? "Defeat" : PillarIsPush ? "Push" : "You1");
+        }
+    }
+
+    [PunRPC]
+    void RPC_CheckDoorSequences()
+    {
+        bool DoorIsShut = CheckSpecificSequence("Word_Door", "Word_Is", "Word_Shut", "Door", "Shut");
+        bool DoorIsWin = CheckSpecificSequence("Word_Door", "Word_Is", "Word_Win", "Door", "Win");
+        bool DoorIsPush = CheckSpecificSequence("Word_Door", "Word_Is", "Word_Push", "Door", "Push");
+
+        if (!DoorIsShut && !DoorIsWin && !DoorIsPush)
+        {
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, false, "Door", "Untagged");
+        }
+        else
+        {
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Door", DoorIsShut ? "Shut" : DoorIsWin ? "Win" : "Push");
+        }
+    }
+
+    [PunRPC]
+    void RPC_CheckKeySequences()
+    {
+        bool KeyIsOpen = CheckSpecificSequence("Word_Key", "Word_Is", "Word_Open", "Key", "Open");
+        bool KeyIsPush = CheckSpecificSequence("Word_Key", "Word_Is", "Word_Push", "Key", "Push");
+
+        if (!KeyIsOpen && !KeyIsPush)
+        {
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, false, "Key", "Untagged");
+        }
+        else
+        {
+            photonView.RPC("SetParentTagsForAll", RpcTarget.All, true, "Key", KeyIsOpen ? "Open" : "Push");
         }
     }
 
@@ -151,20 +185,18 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
                 {
                     foreach (GameObject last in lastObjects)
                     {
-                        // Check for adjacency
                         if ((IsHorizontallyAdjacent(first.transform.position, middle.transform.position) &&
                              IsHorizontallyAdjacent(middle.transform.position, last.transform.position)) ||
                             (IsVerticallyAdjacent(first.transform.position, middle.transform.position) &&
                              IsVerticallyAdjacent(middle.transform.position, last.transform.position)))
                         {
-                            Debug.Log($"Sequence found: {first.tag} - {middle.tag} - {last.tag}");
-                            return true; // Sequence found
+                            return true;
                         }
                     }
                 }
             }
         }
-        return false; // No sequence found
+        return false;
     }
 
     bool IsHorizontallyAdjacent(Vector3 pos1, Vector3 pos2)
@@ -186,8 +218,7 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
             if (targetObject != null)
             {
                 GameObject parentObject = targetObject.transform.parent?.gameObject;
-
-                if (parentObject != null && parentObject.tag != "You1" && parentObject.tag != "You2")
+                if (parentObject != null)
                 {
                     parentObject.tag = isSequence ? newTag : "Untagged";
                 }

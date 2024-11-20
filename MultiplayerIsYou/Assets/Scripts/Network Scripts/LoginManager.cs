@@ -6,6 +6,7 @@ using UnityEngine.UI;
 using SFB; // For file browser
 using PlayFab;
 using PlayFab.ClientModels;
+using System.Collections;
 using System.Collections.Generic;
 using ExitGames.Client.Photon;
 using Amazon;
@@ -16,6 +17,10 @@ using System.Threading.Tasks;
 using System;
 using dotenv.net;
 using Amazon.Runtime;
+using System.Net; // For ServicePointManager
+
+// Add this alias to resolve ambiguity
+using PhotonHashtable = ExitGames.Client.Photon.Hashtable;
 
 public class LoginManager : MonoBehaviourPunCallbacks
 {
@@ -38,14 +43,36 @@ public class LoginManager : MonoBehaviourPunCallbacks
     public TextMeshProUGUI usernamePreviewText;
     private Sprite selectedIcon;
 
+    [Header("Buttons")]
+    public Button loginButton;
+    public Button signupButton;
+
     // AWS S3 Configuration
     private const string bucketName = "multiplayerisyou";
     private AmazonS3Client s3Client;
 
+    private bool needToSetPhotonProperties = false;
+    private string pendingUsername;
+    private string pendingIconUrl;
+
     private void Awake()
     {
+        // Ensure TLS 1.2 is used
+        ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
         // Load environment variables
-        DotEnv.Load();
+        string envFilePath = "";
+
+#if UNITY_EDITOR
+        // In the Unity Editor, the project root is one level up from Application.dataPath
+        envFilePath = Path.Combine(Application.dataPath, "..", ".env");
+#else
+        // In builds, include the .env file in StreamingAssets
+        envFilePath = Path.Combine(Application.streamingAssetsPath, ".env");
+#endif
+
+        // Load environment variables from the specified path
+        DotEnv.Load(new DotEnvOptions(envFilePaths: new[] { envFilePath }));
 
         // Fetch AWS credentials and region from environment variables
         string accessKey = Environment.GetEnvironmentVariable("AWS_ACCESS_KEY");
@@ -75,44 +102,87 @@ public class LoginManager : MonoBehaviourPunCallbacks
         string username = usernameInput.text;
         string password = passwordInput.text;
 
-        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+        if (!IsValidUsername(username))
         {
-            errorText.text = "Please enter both username and password.";
+            errorText.text = "Username must be 3-20 characters, letters and numbers only.";
+            errorText.color = Color.red;
             errorPanel.SetActive(true);
             return;
         }
 
+        if (!IsValidPassword(password))
+        {
+            errorText.text = "Password must be at least 6 characters.";
+            errorText.color = Color.red;
+            errorPanel.SetActive(true);
+            return;
+        }
+
+        loginButton.interactable = false;
+        errorText.color = Color.white;
+        StartCoroutine(AnimateLoadingText(errorText, "Logging in"));
+
         var loginRequest = new LoginWithPlayFabRequest
         {
             Username = username,
-            Password = password
+            Password = password,
+            InfoRequestParameters = new GetPlayerCombinedInfoRequestParams
+            {
+                GetUserData = true
+            }
         };
 
         PlayFabClientAPI.LoginWithPlayFab(loginRequest, result =>
         {
-            Debug.Log("Login Successful");
-            PhotonNetwork.NickName = username;
-
-            // Proceed only after confirming the login is successful
-            if (PlayFabClientAPI.IsClientLoggedIn())
+            // After login success, check if user is already logged in
+            if (result.InfoResultPayload.UserData != null && result.InfoResultPayload.UserData.ContainsKey("IsLoggedIn") && result.InfoResultPayload.UserData["IsLoggedIn"].Value == "true")
             {
-                LoadUserDataAndSyncToPhoton(() =>
-                {
-                    errorPanel.SetActive(false);
-                    AccountPanel.SetActive(false);
-                    menuPanel.SetActive(true);
-                    Debug.Log("Menu panel activated successfully.");
-                });
+                errorText.color = Color.red;
+                errorText.text = "User is already logged in on another device.";
+                errorPanel.SetActive(true);
+                PlayFabClientAPI.ForgetAllCredentials();
+                loginButton.interactable = true;
+                StopAllCoroutines();
             }
             else
             {
-                Debug.LogError("Login successful, but PlayFabClientAPI reports not logged in.");
+                // Set IsLoggedIn to true
+                var updateDataRequest = new UpdateUserDataRequest
+                {
+                    Data = new Dictionary<string, string> { { "IsLoggedIn", "true" } }
+                };
+                PlayFabClientAPI.UpdateUserData(updateDataRequest, updateResult =>
+                {
+                    // Proceed with loading user data
+                    PhotonNetwork.NickName = username;
+
+                    LoadUserDataAndSyncToPhoton(() =>
+                    {
+                        errorPanel.SetActive(false);
+                        AccountPanel.SetActive(false);
+                        menuPanel.SetActive(true);
+                        loginButton.interactable = true;
+                        StopAllCoroutines();
+                        Debug.Log("Menu panel activated successfully.");
+                    });
+                }, updateError =>
+                {
+                    // Handle error
+                    errorText.color = Color.red;
+                    errorText.text = "Failed to update user data.";
+                    errorPanel.SetActive(true);
+                    loginButton.interactable = true;
+                    StopAllCoroutines();
+                });
             }
         }, error =>
         {
             Debug.LogError($"Login failed: {error.ErrorMessage}");
+            errorText.color = Color.red;
             errorText.text = error.ErrorMessage;
             errorPanel.SetActive(true);
+            loginButton.interactable = true;
+            StopAllCoroutines();
         });
     }
 
@@ -121,12 +191,33 @@ public class LoginManager : MonoBehaviourPunCallbacks
         string username = createUsernameInput.text;
         string password = createPasswordInput.text;
 
-        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password) || selectedIcon == null)
+        if (!IsValidUsername(username))
         {
-            createErrorText.text = "Please fill in all fields and select an icon.";
+            createErrorText.text = "Username must be 3-20 characters, letters and numbers only.";
+            createErrorText.color = Color.red;
             createErrorPanel.SetActive(true);
             return;
         }
+
+        if (!IsValidPassword(password))
+        {
+            createErrorText.text = "Password must be at least 6 characters.";
+            createErrorText.color = Color.red;
+            createErrorPanel.SetActive(true);
+            return;
+        }
+
+        if (selectedIcon == null)
+        {
+            createErrorText.text = "Please select an icon.";
+            createErrorText.color = Color.red;
+            createErrorPanel.SetActive(true);
+            return;
+        }
+
+        signupButton.interactable = false;
+        createErrorText.color = Color.white;
+        StartCoroutine(AnimateLoadingText(createErrorText, "Creating account"));
 
         var registerRequest = new RegisterPlayFabUserRequest
         {
@@ -137,32 +228,85 @@ public class LoginManager : MonoBehaviourPunCallbacks
 
         PlayFabClientAPI.RegisterPlayFabUser(registerRequest, async result =>
         {
-            Debug.Log("Account Created Successfully");
-
-            string filePath = await SaveSpriteToLocal(selectedIcon);
-            string s3Url = await UploadImageToS3(filePath, $"{username}/profile_picture.png");
-
-            SaveUserData(username, username, s3Url); // Save both Username and NewUsername
-            PhotonNetwork.NickName = username;
-
-            Hashtable photonProperties = new Hashtable
+            try
             {
-                { "Username", username },
-                { "Icon", s3Url }
-            };
-            PhotonNetwork.LocalPlayer.SetCustomProperties(photonProperties);
+                StopAllCoroutines();
+                createErrorText.text = "Account created successfully! Signing you in...";
+                createErrorText.color = Color.white;
+                StartCoroutine(AnimateLoadingText(createErrorText, "Account created successfully! Signing you in"));
 
-            FindObjectOfType<MainMenuManager>()?.UpdateMenuUI();
+                Debug.Log("Account Created Successfully");
 
-            AccountPanel.SetActive(false);
-            menuPanel.SetActive(true);
-            Debug.Log("Menu panel activated successfully after account creation.");
+                // Proceed only if the client is logged in
+                if (PlayFabClientAPI.IsClientLoggedIn())
+                {
+                    string filePath = await SaveSpriteToLocal(selectedIcon);
+                    string s3Url = await UploadImageToS3(filePath, $"{username}/profile_picture.png");
+
+                    if (string.IsNullOrEmpty(s3Url))
+                    {
+                        throw new Exception("Failed to upload image to S3.");
+                    }
+
+                    SaveUserData(username, username, s3Url); // Save both Username and NewUsername
+                    PhotonNetwork.NickName = username;
+
+                    pendingUsername = username;
+                    pendingIconUrl = s3Url;
+                    needToSetPhotonProperties = true;
+
+                    if (!PhotonNetwork.IsConnected)
+                    {
+                        PhotonNetwork.ConnectUsingSettings();
+                    }
+                    else
+                    {
+                        SetPhotonProperties();
+                    }
+                }
+                else
+                {
+                    Debug.LogError("Account created, but PlayFabClientAPI reports not logged in.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Exception during account creation: {ex.Message}");
+                createErrorText.color = Color.red;
+                createErrorText.text = "An error occurred during account creation.";
+                createErrorPanel.SetActive(true);
+                signupButton.interactable = true;
+                StopAllCoroutines();
+            }
         }, error =>
         {
             Debug.LogError($"Account creation failed: {error.ErrorMessage}");
+            createErrorText.color = Color.red;
             createErrorText.text = error.ErrorMessage;
             createErrorPanel.SetActive(true);
+            signupButton.interactable = true;
+            StopAllCoroutines();
         });
+    }
+
+    private bool IsValidUsername(string username)
+    {
+        // Username must be between 3 and 20 characters, letters and numbers only
+        if (username.Length < 3 || username.Length > 20)
+            return false;
+
+        foreach (char c in username)
+        {
+            if (!char.IsLetterOrDigit(c))
+                return false;
+        }
+        return true;
+    }
+
+    private bool IsValidPassword(string password)
+    {
+        // Password must be at least 6 characters
+        return password.Length >= 6;
     }
 
     public void SelectPreSetIcon(Button iconButton)
@@ -177,11 +321,22 @@ public class LoginManager : MonoBehaviourPunCallbacks
         if (paths.Length > 0)
         {
             string path = paths[0];
+            Debug.Log($"Selected file path: {path}");
 
             // Display the file name in the UI
             fileNameText.text = Path.GetFileName(path);
 
             Texture2D texture = LoadTexture(path);
+            if (texture == null)
+            {
+                Debug.LogError("Failed to load texture from selected file.");
+                // Show error message to user
+                createErrorText.text = "Failed to load image. Please select a valid image file.";
+                createErrorText.color = Color.red;
+                createErrorPanel.SetActive(true);
+                return;
+            }
+
             Sprite newIcon = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
             selectedIcon = newIcon;
             selectedIconDisplay.sprite = newIcon;
@@ -192,21 +347,50 @@ public class LoginManager : MonoBehaviourPunCallbacks
     {
         try
         {
-            var putRequest = new PutObjectRequest
+            if (s3Client == null)
             {
-                BucketName = bucketName,
-                Key = key,
-                FilePath = filePath,
-                ContentType = "image/png"
-            };
+                Debug.LogError("s3Client is null. AWS credentials may not be initialized.");
+                throw new Exception("AWS S3 client is not initialized.");
+            }
 
-            await s3Client.PutObjectAsync(putRequest);
-            Debug.Log("Image uploaded successfully to S3.");
-            return $"https://{bucketName}.s3.{s3Client.Config.RegionEndpoint.SystemName}.amazonaws.com/{key}";
+            // Read the file into a byte array
+            byte[] fileData = File.ReadAllBytes(filePath);
+
+            // Optionally, check file size (e.g., limit to 5 MB)
+            if (fileData.Length > 5 * 1024 * 1024) // 5 MB limit
+            {
+                Debug.LogError("File is too large to upload. Please select an image less than 5 MB.");
+                // Show error message to user
+                createErrorText.text = "Image is too large. Please select an image less than 5 MB.";
+                createErrorText.color = Color.red;
+                createErrorPanel.SetActive(true);
+                return null;
+            }
+
+            // Create a memory stream from the byte array
+            using (var ms = new MemoryStream(fileData))
+            {
+                var putRequest = new PutObjectRequest
+                {
+                    BucketName = bucketName,
+                    Key = key,
+                    InputStream = ms,
+                    ContentType = "image/png"
+                };
+
+                var response = await s3Client.PutObjectAsync(putRequest);
+                Debug.Log("Image uploaded successfully to S3.");
+                return $"https://{bucketName}.s3.{s3Client.Config.RegionEndpoint.SystemName}.amazonaws.com/{key}";
+            }
         }
         catch (AmazonS3Exception ex)
         {
-            Debug.LogError($"Error uploading image to S3: {ex.Message}");
+            Debug.LogError($"AmazonS3Exception: {ex.Message}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Exception during image upload: {ex.Message}");
             return null;
         }
     }
@@ -216,10 +400,30 @@ public class LoginManager : MonoBehaviourPunCallbacks
         string filePath = Path.Combine(Application.persistentDataPath, "temp_profile_picture.png");
 
         Texture2D texture = MakeTextureReadable(sprite.texture);
-        byte[] imageData = texture.EncodeToPNG();
-        await File.WriteAllBytesAsync(filePath, imageData);
+        if (texture == null)
+        {
+            Debug.LogError("Failed to make the sprite texture readable.");
+            return null;
+        }
 
-        return filePath;
+        byte[] imageData = texture.EncodeToPNG();
+        if (imageData == null || imageData.Length == 0)
+        {
+            Debug.LogError("Failed to encode texture to PNG.");
+            return null;
+        }
+
+        try
+        {
+            await File.WriteAllBytesAsync(filePath, imageData);
+            Debug.Log($"Sprite saved to local file: {filePath}");
+            return filePath;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Error saving sprite to local file: {ex.Message}");
+            return null;
+        }
     }
 
     private void SaveUserData(string username, string newUsername, string s3Url)
@@ -230,7 +434,8 @@ public class LoginManager : MonoBehaviourPunCallbacks
             {
                 { "Username", username },
                 { "NewUsername", newUsername },
-                { "ProfilePictureUrl", s3Url }
+                { "ProfilePictureUrl", s3Url },
+                { "IsLoggedIn", "true" }
             }
         };
 
@@ -238,7 +443,7 @@ public class LoginManager : MonoBehaviourPunCallbacks
         {
             Debug.Log("User data saved successfully!");
 
-            Hashtable photonProperties = new Hashtable
+            PhotonHashtable photonProperties = new PhotonHashtable
             {
                 { "Username", newUsername },
                 { "Icon", s3Url }
@@ -257,7 +462,7 @@ public class LoginManager : MonoBehaviourPunCallbacks
         {
             if (result.Data != null)
             {
-                Hashtable photonProperties = new Hashtable();
+                PhotonHashtable photonProperties = new PhotonHashtable();
 
                 if (result.Data.ContainsKey("Username"))
                 {
@@ -271,12 +476,7 @@ public class LoginManager : MonoBehaviourPunCallbacks
                     string url = result.Data["ProfilePictureUrl"].Value;
                     photonProperties["Icon"] = url;
 
-                    Texture2D texture = await DownloadImageFromS3(url);
-                    if (texture != null)
-                    {
-                        Sprite profileSprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
-                        selectedIconDisplay.sprite = profileSprite;
-                    }
+                    // Optionally, you can load the image here
                 }
 
                 PhotonNetwork.LocalPlayer.SetCustomProperties(photonProperties);
@@ -293,14 +493,46 @@ public class LoginManager : MonoBehaviourPunCallbacks
         });
     }
 
+    public override void OnConnectedToMaster()
+    {
+        Debug.Log("Connected to Photon Master Server.");
+
+        if (needToSetPhotonProperties)
+        {
+            SetPhotonProperties();
+            needToSetPhotonProperties = false;
+        }
+    }
+
+    private void SetPhotonProperties()
+    {
+        PhotonHashtable photonProperties = new PhotonHashtable
+        {
+            { "Username", pendingUsername },
+            { "Icon", pendingIconUrl }
+        };
+        PhotonNetwork.LocalPlayer.SetCustomProperties(photonProperties);
+
+        FindObjectOfType<MainMenuManager>()?.UpdateMenuUI();
+
+        AccountPanel.SetActive(false);
+        menuPanel.SetActive(true);
+        signupButton.interactable = true;
+        StopAllCoroutines();
+        Debug.Log("Menu panel activated successfully after account creation.");
+    }
+
     private async Task<Texture2D> DownloadImageFromS3(string url)
     {
         try
         {
+            var uri = new Uri(url);
+            string key = uri.LocalPath.TrimStart('/');
+
             var getRequest = new GetObjectRequest
             {
                 BucketName = bucketName,
-                Key = new Uri(url).LocalPath.TrimStart('/')
+                Key = key
             };
 
             using (var response = await s3Client.GetObjectAsync(getRequest))
@@ -308,8 +540,15 @@ public class LoginManager : MonoBehaviourPunCallbacks
             {
                 await response.ResponseStream.CopyToAsync(stream);
                 Texture2D texture = new Texture2D(2, 2);
-                texture.LoadImage(stream.ToArray());
-                return texture;
+                if (texture.LoadImage(stream.ToArray()))
+                {
+                    return texture;
+                }
+                else
+                {
+                    Debug.LogError("Failed to load image data into texture.");
+                    return null;
+                }
             }
         }
         catch (AmazonS3Exception ex)
@@ -321,33 +560,88 @@ public class LoginManager : MonoBehaviourPunCallbacks
 
     private Texture2D LoadTexture(string filePath)
     {
-        byte[] fileData = File.ReadAllBytes(filePath);
-        Texture2D texture = new Texture2D(2, 2);
-        texture.LoadImage(fileData);
-        return texture;
+        try
+        {
+            byte[] fileData = File.ReadAllBytes(filePath);
+            Texture2D texture = new Texture2D(2, 2);
+            if (texture.LoadImage(fileData))
+            {
+                return texture;
+            }
+            else
+            {
+                Debug.LogError("Failed to load image data into texture.");
+                return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Error loading texture from file: {ex.Message}");
+            return null;
+        }
     }
 
     private Texture2D MakeTextureReadable(Texture2D originalTexture)
     {
-        RenderTexture renderTex = RenderTexture.GetTemporary(
-            originalTexture.width, originalTexture.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
+        if (originalTexture.isReadable)
+        {
+            return originalTexture; // Return if the texture is already readable
+        }
 
-        Graphics.Blit(originalTexture, renderTex);
-        RenderTexture previous = RenderTexture.active;
-        RenderTexture.active = renderTex;
+        try
+        {
+            RenderTexture tempRenderTexture = RenderTexture.GetTemporary(
+                originalTexture.width,
+                originalTexture.height,
+                0,
+                RenderTextureFormat.Default,
+                RenderTextureReadWrite.Linear);
 
-        Texture2D readableTexture = new Texture2D(originalTexture.width, originalTexture.height);
-        readableTexture.ReadPixels(new Rect(0, 0, renderTex.width, renderTex.height), 0, 0);
-        readableTexture.Apply();
+            Graphics.Blit(originalTexture, tempRenderTexture);
 
-        RenderTexture.active = previous;
-        RenderTexture.ReleaseTemporary(renderTex);
+            RenderTexture previousRenderTexture = RenderTexture.active;
+            RenderTexture.active = tempRenderTexture;
 
-        return readableTexture;
+            Texture2D readableTexture = new Texture2D(originalTexture.width, originalTexture.height, TextureFormat.RGBA32, false);
+            readableTexture.ReadPixels(new Rect(0, 0, tempRenderTexture.width, tempRenderTexture.height), 0, 0);
+            readableTexture.Apply();
+
+            RenderTexture.active = previousRenderTexture;
+            RenderTexture.ReleaseTemporary(tempRenderTexture);
+
+            return readableTexture;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Error making texture readable: {ex.Message}");
+            return null;
+        }
     }
 
     private void UpdateUsernamePreview(string newUsername)
     {
         usernamePreviewText.text = $"{newUsername}";
+    }
+
+    private IEnumerator AnimateLoadingText(TextMeshProUGUI textComponent, string baseText)
+    {
+        string[] dots = { ".", "..", "..." };
+        int index = 0;
+        while (true)
+        {
+            textComponent.text = $"{baseText}{dots[index % dots.Length]}";
+            index++;
+            yield return new WaitForSeconds(0.5f);
+        }
+    }
+
+    private void OnApplicationQuit()
+    {
+        // Set IsLoggedIn to false
+        var updateDataRequest = new UpdateUserDataRequest
+        {
+            Data = new Dictionary<string, string> { { "IsLoggedIn", "false" } }
+        };
+        PlayFabClientAPI.UpdateUserData(updateDataRequest, null, null);
     }
 }

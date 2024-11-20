@@ -13,6 +13,7 @@ public class WinChecker : MonoBehaviourPunCallbacks
 
     void Start()
     {
+        // Initially hide all texts
         winText1.gameObject.SetActive(false);
         winText2.gameObject.SetActive(false);
         defeatText1.gameObject.SetActive(false);
@@ -21,9 +22,15 @@ public class WinChecker : MonoBehaviourPunCallbacks
 
     void Update()
     {
-        if (photonView.IsMine) // Only run the check on the master client
+        if (photonView.IsMine) // Only run the checks on the master client
         {
             CheckWinAndDefeatConditions();
+        }
+
+        // Allow any player to reload the scene on pressing "R"
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            ReloadScene();
         }
     }
 
@@ -48,6 +55,7 @@ public class WinChecker : MonoBehaviourPunCallbacks
         }
     }
 
+    // Check if any "You" object is overlapping with a target object (e.g., "Win")
     bool CheckOverlap(GameObject[] youObjects, GameObject[] targetObjects)
     {
         foreach (GameObject youObj in youObjects)
@@ -59,7 +67,7 @@ public class WinChecker : MonoBehaviourPunCallbacks
                 {
                     if (collider.gameObject == targetObj)
                     {
-                        return true;
+                        return true; // Proximity detected
                     }
                 }
             }
@@ -67,6 +75,7 @@ public class WinChecker : MonoBehaviourPunCallbacks
         return false;
     }
 
+    // Get the "You" object that is touching a "Defeat" object
     GameObject GetTouchingDefeat(GameObject[] youObjects, GameObject[] defeatObjects)
     {
         foreach (GameObject youObj in youObjects)
@@ -78,17 +87,18 @@ public class WinChecker : MonoBehaviourPunCallbacks
                 {
                     if (collider.gameObject == defeatObj)
                     {
-                        return youObj;
+                        return youObj; // Return the touching "You" object
                     }
                 }
             }
         }
-        return null;
+        return null; // No overlap found
     }
 
     [PunRPC]
     void DisplayWinTexts()
     {
+        // Show win texts for both players
         winText1.gameObject.SetActive(true);
         winText2.gameObject.SetActive(true);
     }
@@ -99,14 +109,16 @@ public class WinChecker : MonoBehaviourPunCallbacks
         PhotonView targetView = PhotonView.Find(viewID);
         if (targetView != null)
         {
-            targetView.gameObject.SetActive(false);
+            targetView.gameObject.SetActive(false); // Deactivate the object that touched a "Defeat" object
         }
 
+        // Check if any "You1" or "You2" objects remain in the scene
         GameObject[] remainingYou1Objects = GameObject.FindGameObjectsWithTag("You1");
         GameObject[] remainingYou2Objects = GameObject.FindGameObjectsWithTag("You2");
 
         if (remainingYou1Objects.Length == 0 || remainingYou2Objects.Length == 0)
         {
+            // Show defeat texts if no "You1" or "You2" objects remain
             defeatText1.gameObject.SetActive(true);
             defeatText2.gameObject.SetActive(true);
         }
@@ -114,7 +126,7 @@ public class WinChecker : MonoBehaviourPunCallbacks
 
     void ReloadScene()
     {
-        if (photonView.IsMine) // Only reload on master client
+        if (photonView.IsMine) // Ensure only the master client reloads the scene
         {
             PhotonNetwork.LoadLevel(SceneManager.GetActiveScene().name);
         }

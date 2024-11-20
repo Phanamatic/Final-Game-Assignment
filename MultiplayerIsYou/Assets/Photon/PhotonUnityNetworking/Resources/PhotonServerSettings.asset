@@ -49,6 +49,11 @@ MonoBehaviour:
   - RPC_CheckRockSequences
   - RPC_CheckWallSequences
   - RPC_MoveObject
+  - RPC_CheckDoorSequences
+  - RPC_CheckKeySequences
+  - RPC_CheckPillarSequences
+  - RPC_DestroyObject
+  - RPC_CheckFlagSequences
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1
