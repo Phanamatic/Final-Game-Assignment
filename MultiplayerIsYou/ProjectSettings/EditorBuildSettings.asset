@@ -14,13 +14,13 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/LevelSelector.unity
     guid: e3229c826a26c254ebdbbc0787548eb5
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Eden_Test_1.unity
     guid: 97cae3e14aabe624d9a0b84350a8f22e
   - enabled: 0
     path: Assets/Scenes/Eden_Test_2.unity
     guid: 084098799e5195c4da4817db6550c2c7
-  - enabled: 0
+  - enabled: 1
     path: Assets/Scenes/Eden_Test_3.unity
     guid: 96565472bc0c7184ca33b512c4d4bd22
   - enabled: 0
