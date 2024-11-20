@@ -17,7 +17,6 @@ public class Player2Controller : MonoBehaviourPunCallbacks
         }
     }
 
-    // Handle movement input from the player
     void HandleMovementInput()
     {
         moveDirection = Vector3.zero;
@@ -33,12 +32,23 @@ public class Player2Controller : MonoBehaviourPunCallbacks
         }
     }
 
-    // Move the player by 1 unit
     void MovePlayer()
     {
         Vector3 targetPosition = transform.position + moveDirection;
         Collider2D hitCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
 
+        // Check if the player is colliding with a Shut object
+        if (hitCollider != null && hitCollider.CompareTag("Shut"))
+        {
+            // Only block movement if it's not an "OpenAndPush" object
+            if (!HasOpenAndPushTag(hitCollider.gameObject))
+            {
+                Debug.Log("Blocked by a Shut object!");
+                return; // Prevent moving into Shut objects
+            }
+        }
+
+        // Handle other collisions and pushing logic
         if (hitCollider != null)
         {
             if (hitCollider.CompareTag("Stop"))
@@ -51,7 +61,7 @@ public class Player2Controller : MonoBehaviourPunCallbacks
                 if (CanPushChain(hitCollider.gameObject, moveDirection))
                 {
                     PushObject(hitCollider.gameObject, moveDirection);
-                    transform.position = targetPosition; // Move the player after pushing
+                    transform.position = targetPosition;
                 }
                 else
                 {
@@ -60,7 +70,7 @@ public class Player2Controller : MonoBehaviourPunCallbacks
             }
             else
             {
-                transform.position = targetPosition; // Move the player if no pushable object or stop tag
+                transform.position = targetPosition;
             }
         }
         else
@@ -69,7 +79,6 @@ public class Player2Controller : MonoBehaviourPunCallbacks
         }
     }
 
-    // Check if the entire chain of pushable objects can be pushed
     bool CanPushChain(GameObject firstObject, Vector3 direction)
     {
         Queue<GameObject> toPush = new Queue<GameObject>();
@@ -80,14 +89,19 @@ public class Player2Controller : MonoBehaviourPunCallbacks
             GameObject obj = toPush.Dequeue();
             Vector3 targetPosition = obj.transform.position + direction * pushDistance;
 
-            Collider2D pushBlockCheck = Physics2D.OverlapCircle(targetPosition, 0.1f);
-            if (pushBlockCheck != null)
+            // Check if the target position is blocked by a Shut object
+            Collider2D pushBlockCheck = Physics2D.OverlapCircle(targetPosition, 0.2f);
+            if (pushBlockCheck != null && pushBlockCheck.CompareTag("Shut"))
             {
-                // Block pushing if encountering "Stop" or "Shut" objects without "Open" or "OpenAndPush" tags
-                if (pushBlockCheck.CompareTag("Stop")) return false;
-                if (pushBlockCheck.CompareTag("Shut") && !HasOpenTag(obj)) return false;
+                // If it's an "OpenAndPush" object, don't block
+                if (!HasOpenAndPushTag(obj))
+                {
+                    Debug.Log($"Blocked by a Shut object at {targetPosition}.");
+                    return false;
+                }
             }
 
+            // Check for adjacent pushable objects
             Collider2D adjacentCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
             if (adjacentCollider != null && IsPushable(adjacentCollider.gameObject))
             {
@@ -97,16 +111,24 @@ public class Player2Controller : MonoBehaviourPunCallbacks
                 }
             }
         }
+
         return true;
     }
 
-    // Push the object and handle pushing of adjacent pushable objects
     void PushObject(GameObject obj, Vector3 direction)
     {
         Vector3 pushTargetPosition = obj.transform.position + direction * pushDistance;
 
         // Move the object on all clients
-        photonView.RPC("RPC_MoveObject", RpcTarget.All, obj.GetComponent<PhotonView>().ViewID, pushTargetPosition);
+        PhotonView objPhotonView = obj.GetComponent<PhotonView>();
+        if (objPhotonView != null)
+        {
+            photonView.RPC("RPC_MoveObject", RpcTarget.All, objPhotonView.ViewID, pushTargetPosition);
+        }
+        else
+        {
+            Debug.LogError("Object does not have a PhotonView component.");
+        }
 
         // Check for adjacent pushable objects and push them
         Collider2D adjacentCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
@@ -115,11 +137,33 @@ public class Player2Controller : MonoBehaviourPunCallbacks
             PushObject(adjacentCollider.gameObject, direction);
         }
 
-        // Destroy Shut objects if pushed into them by Open or OpenAndPush objects
+        // Destroy Shut and OpenAndPush objects if pushed into each other
         Collider2D shutCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
-        if (shutCollider != null && shutCollider.CompareTag("Shut") && HasOpenTag(obj))
+        if (shutCollider != null && shutCollider.CompareTag("Shut"))
         {
-            photonView.RPC("RPC_DestroyObject", RpcTarget.All, shutCollider.GetComponent<PhotonView>().ViewID);
+            if (HasOpenAndPushTag(obj)) // Both objects get destroyed
+            {
+                PhotonView shutPhotonView = shutCollider.GetComponent<PhotonView>();
+                if (shutPhotonView != null)
+                {
+                    photonView.RPC("RPC_DestroyObject", RpcTarget.All, shutPhotonView.ViewID);
+                }
+                else
+                {
+                    Debug.LogError("Shut object does not have a PhotonView component.");
+                }
+
+                if (objPhotonView != null)
+                {
+                    photonView.RPC("RPC_DestroyObject", RpcTarget.All, objPhotonView.ViewID);
+                }
+
+                Debug.Log($"Shut and OpenAndPush objects destroyed at {pushTargetPosition}!");
+            }
+            else
+            {
+                Debug.Log($"Shut object at {pushTargetPosition} not destroyed - missing OpenAndPush!");
+            }
         }
     }
 
@@ -143,20 +187,29 @@ public class Player2Controller : MonoBehaviourPunCallbacks
         }
     }
 
-    // Check if the object is pushable
     bool IsPushable(GameObject obj)
     {
-        // Combine logic from both scripts
+        // Check if the object has the "Push" or "OpenAndPush" tag, or if it has any child with the "Word" tag
+        if (obj.CompareTag("Push") || obj.CompareTag("OpenAndPush"))
+        {
+            return true;
+        }
+
+        // Also check if the object has any child with the "Word" tag
         foreach (Transform child in obj.transform)
         {
-            if (child.CompareTag("Word")) return true; // Check for "Word" tag in children (from old script)
+            if (child.CompareTag("Word"))
+            {
+                return true;
+            }
         }
-        return obj.CompareTag("Push") || obj.CompareTag("OpenAndPush"); // Retain new logic
+
+        return false;
     }
 
-    // Check if the object has "Open" or "OpenAndPush" tags
-    bool HasOpenTag(GameObject obj)
+    bool HasOpenAndPushTag(GameObject obj)
     {
-        return obj.CompareTag("Open") || obj.CompareTag("OpenAndPush");
+        // Only objects with "OpenAndPush" tag should push through Shut objects
+        return obj.CompareTag("OpenAndPush");
     }
 }

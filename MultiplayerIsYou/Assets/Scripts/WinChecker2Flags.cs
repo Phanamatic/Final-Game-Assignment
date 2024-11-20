@@ -1,7 +1,9 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement; // Import SceneManagement
-public class WinChecker2Flags : MonoBehaviour
+using Photon.Pun;
+using UnityEngine.SceneManagement;
+
+public class WinChecker2Flags : MonoBehaviourPunCallbacks
 {
     public TextMeshProUGUI winText1;
     public TextMeshProUGUI winText2;
@@ -23,6 +25,20 @@ public class WinChecker2Flags : MonoBehaviour
 
     void Update()
     {
+        if (PhotonNetwork.IsMasterClient) // Only run the checks on the master client
+        {
+            CheckWinAndDefeatConditions();
+        }
+
+        // Allow any player to reload the scene on pressing "R"
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            ReloadScene();
+        }
+    }
+
+    void CheckWinAndDefeatConditions()
+    {
         // Check if any object with tag "You1" or "You2" is near an object with the tag "Win"
         GameObject[] you1Objects = GameObject.FindGameObjectsWithTag("You1");
         GameObject[] you2Objects = GameObject.FindGameObjectsWithTag("You2");
@@ -38,18 +54,16 @@ public class WinChecker2Flags : MonoBehaviour
 
         if (isYou1TouchingWin && isYou2TouchingWin)
         {
-            DisplayWinTexts();
+            photonView.RPC("DisplayWinTexts", RpcTarget.All);
         }
 
         if (touchingDefeatObj != null)
         {
-            HandleDefeat(touchingDefeatObj);
-        }
-
-        // Check if player presses "R" to reload the scene
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            ReloadScene();
+            PhotonView defeatPhotonView = touchingDefeatObj.GetComponent<PhotonView>();
+            if (defeatPhotonView != null)
+            {
+                photonView.RPC("HandleDefeat", RpcTarget.All, defeatPhotonView.ViewID);
+            }
         }
     }
 
@@ -95,16 +109,21 @@ public class WinChecker2Flags : MonoBehaviour
         return null; // No object found touching defeat
     }
 
+    [PunRPC]
     void DisplayWinTexts()
     {
         winText1.gameObject.SetActive(true); // Show the first win text
         winText2.gameObject.SetActive(true); // Show the second win text
     }
 
-    void HandleDefeat(GameObject touchingObject)
+    [PunRPC]
+    void HandleDefeat(int objectViewID)
     {
-        // Deactivate the object that touched the defeat object
-        touchingObject.SetActive(false);
+        PhotonView objView = PhotonView.Find(objectViewID);
+        if (objView != null)
+        {
+            objView.gameObject.SetActive(false); // Deactivate the object that touched the defeat object
+        }
 
         // Check if there are no more You1 or You2 objects left in the scene
         GameObject[] remainingYou1Objects = GameObject.FindGameObjectsWithTag("You1");
@@ -112,7 +131,6 @@ public class WinChecker2Flags : MonoBehaviour
 
         if (remainingYou1Objects.Length == 0 || remainingYou2Objects.Length == 0)
         {
-            // Display defeat texts if no more You1 or You2 objects remain
             defeatText1.gameObject.SetActive(true);
             defeatText2.gameObject.SetActive(true);
         }
@@ -122,6 +140,6 @@ public class WinChecker2Flags : MonoBehaviour
     void ReloadScene()
     {
         // Reload the currently active scene
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        PhotonNetwork.LoadLevel(SceneManager.GetActiveScene().name);
     }
 }
