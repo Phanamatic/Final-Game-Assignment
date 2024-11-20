@@ -12674,6 +12674,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   usernameText: {fileID: 1007581870}
   profileIconImage: {fileID: 1459682714}
+  placeholderSprite: {fileID: 21300000, guid: 10e0ab757cfe39547b3cd1a4bdd6e61a, type: 3}
   matchmakingPanel: {fileID: 2008412803}
   mainMenuPanel: {fileID: 1144994021}
   lobbyPanel: {fileID: 1654167593}

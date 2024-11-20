@@ -16,6 +16,7 @@ using ExitGames.Client.Photon;
 using System.Collections;
 using UnityEngine.Networking;
 using System.Net;
+using System.Threading; // For CancellationTokenSource
 
 // Add this alias to resolve ambiguity
 using PhotonHashtable = ExitGames.Client.Photon.Hashtable;
@@ -25,6 +26,7 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     [Header("UI Elements")]
     public TMP_Text usernameText;
     public Image profileIconImage;
+    public Sprite placeholderSprite; // Placeholder sprite for icons
 
     [Header("Panels")]
     public GameObject matchmakingPanel;
@@ -107,6 +109,9 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
 
     private void Start()
     {
+        // Set AutomaticallySyncScene to true for synchronized scene loading
+        PhotonNetwork.AutomaticallySyncScene = true;
+
         if (!PhotonNetwork.IsConnected)
         {
             Debug.Log("Connecting to Photon Master Server...");
@@ -126,6 +131,12 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     {
         usernameText.text = PhotonNetwork.NickName;
         createGameButton.gameObject.SetActive(!PhotonNetwork.InRoom);
+
+        // Update profile icon if it's not set yet and custom properties are available
+        if (profileIconImage.sprite == null && PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey("Icon"))
+        {
+            UpdatePlayerProfileIcon();
+        }
     }
 
     public override void OnConnectedToMaster()
@@ -277,6 +288,12 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         Image player1Icon = lobbyItem.transform.Find("Player1Icon")?.GetComponent<Image>();
         Image player2Icon = lobbyItem.transform.Find("Player2Icon")?.GetComponent<Image>();
 
+        // Set placeholder images
+        if (player1Icon != null)
+            player1Icon.sprite = placeholderSprite;
+        if (player2Icon != null)
+            player2Icon.sprite = placeholderSprite;
+
         // Start coroutine to download and set icons
         if (player1Icon != null)
             StartCoroutine(DownloadAndSetIcon(player1IconUrl, player1Icon));
@@ -293,25 +310,42 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     {
         if (string.IsNullOrEmpty(url))
         {
-            iconImage.sprite = null;
+            if (iconImage != null)
+                iconImage.sprite = placeholderSprite;
             yield break;
         }
 
         if (iconCache.ContainsKey(url))
         {
-            Texture2D cachedTexture = iconCache[url];
-            iconImage.sprite = Sprite.Create(cachedTexture, new Rect(0, 0, cachedTexture.width, cachedTexture.height), Vector2.zero);
+            if (iconImage != null)
+            {
+                Texture2D cachedTexture = iconCache[url];
+                if (cachedTexture != null)
+                {
+                    iconImage.sprite = Sprite.Create(cachedTexture, new Rect(0, 0, cachedTexture.width, cachedTexture.height), Vector2.zero);
+                }
+            }
             yield break;
         }
 
         // Start the download task
         Task<Texture2D> downloadTask = DownloadImageFromS3(url);
-        yield return new WaitUntil(() => downloadTask.IsCompleted);
+
+        while (!downloadTask.IsCompleted)
+        {
+            if (iconImage == null)
+            {
+                // The Image has been destroyed, stop the coroutine
+                yield break;
+            }
+            yield return null;
+        }
 
         if (downloadTask.Exception != null)
         {
             Debug.LogError($"Error downloading icon: {downloadTask.Exception.Message}");
-            iconImage.sprite = null;
+            if (iconImage != null)
+                iconImage.sprite = placeholderSprite;
         }
         else
         {
@@ -319,11 +353,15 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
             if (texture != null)
             {
                 iconCache[url] = texture;
-                iconImage.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
+                if (iconImage != null)
+                {
+                    iconImage.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
+                }
             }
             else
             {
-                iconImage.sprite = null;
+                if (iconImage != null)
+                    iconImage.sprite = placeholderSprite;
             }
         }
     }
@@ -338,7 +376,9 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
                 Key = new Uri(url).LocalPath.TrimStart('/')
             };
 
-            using (var response = await s3Client.GetObjectAsync(getRequest))
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)); // 10-second timeout
+
+            using (var response = await s3Client.GetObjectAsync(getRequest, cts.Token))
             using (var stream = new MemoryStream())
             {
                 await response.ResponseStream.CopyToAsync(stream);
@@ -346,6 +386,11 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
                 texture.LoadImage(stream.ToArray());
                 return texture;
             }
+        }
+        catch (TaskCanceledException)
+        {
+            Debug.LogError("Image download timed out.");
+            return null;
         }
         catch (AmazonS3Exception ex)
         {
@@ -449,12 +494,18 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     {
         UpdateLobbyDetails();
         UpdateRoomCustomProperties();
+
+        // Refresh room list to update lobby prefabs
+        RefreshRoomList();
     }
 
     public override void OnPlayerLeftRoom(Player otherPlayer)
     {
         UpdateLobbyDetails();
         UpdateRoomCustomProperties();
+
+        // Refresh room list to update lobby prefabs
+        RefreshRoomList();
     }
 
     public override void OnPlayerPropertiesUpdate(Player targetPlayer, PhotonHashtable changedProps)
@@ -469,6 +520,9 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
             UpdateLobbyDetails();
             UpdateRoomCustomProperties();
         }
+
+        // Refresh room list to update lobby prefabs
+        RefreshRoomList();
     }
 
     // New method to handle room property updates
@@ -476,6 +530,9 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     {
         Debug.Log("Room properties updated.");
         UpdateLobbyDetails();
+
+        // Refresh room list to update lobby prefabs
+        RefreshRoomList();
     }
 
     private async void UpdatePlayerProfileIcon()
@@ -493,6 +550,9 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
                 }
                 else
                 {
+                    // Set placeholder image
+                    profileIconImage.sprite = placeholderSprite;
+
                     Texture2D texture = await DownloadImageFromS3(iconUrl);
                     if (texture != null)
                     {
@@ -502,6 +562,14 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
                     }
                 }
             }
+            else
+            {
+                profileIconImage.sprite = placeholderSprite;
+            }
+        }
+        else
+        {
+            profileIconImage.sprite = placeholderSprite;
         }
     }
 
@@ -517,12 +585,17 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
             player1Username.text = players[0].NickName;
             string iconUrl = players[0].CustomProperties.ContainsKey("Icon") ? players[0].CustomProperties["Icon"] as string : "";
 
+            player1Icon.sprite = placeholderSprite;
+
             if (!string.IsNullOrEmpty(iconUrl))
             {
                 if (iconCache.ContainsKey(iconUrl))
                 {
                     Texture2D cachedTexture = iconCache[iconUrl];
-                    player1Icon.sprite = Sprite.Create(cachedTexture, new Rect(0, 0, cachedTexture.width, cachedTexture.height), Vector2.zero);
+                    if (cachedTexture != null)
+                    {
+                        player1Icon.sprite = Sprite.Create(cachedTexture, new Rect(0, 0, cachedTexture.width, cachedTexture.height), Vector2.zero);
+                    }
                 }
                 else
                 {
@@ -530,13 +603,12 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
                     if (texture != null)
                     {
                         iconCache[iconUrl] = texture;
-                        player1Icon.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
+                        if (player1Icon != null)
+                        {
+                            player1Icon.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
+                        }
                     }
                 }
-            }
-            else
-            {
-                player1Icon.sprite = null;
             }
         }
 
@@ -545,12 +617,17 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
             player2Username.text = players[1].NickName;
             string iconUrl = players[1].CustomProperties.ContainsKey("Icon") ? players[1].CustomProperties["Icon"] as string : "";
 
+            player2Icon.sprite = placeholderSprite;
+
             if (!string.IsNullOrEmpty(iconUrl))
             {
                 if (iconCache.ContainsKey(iconUrl))
                 {
                     Texture2D cachedTexture = iconCache[iconUrl];
-                    player2Icon.sprite = Sprite.Create(cachedTexture, new Rect(0, 0, cachedTexture.width, cachedTexture.height), Vector2.zero);
+                    if (cachedTexture != null)
+                    {
+                        player2Icon.sprite = Sprite.Create(cachedTexture, new Rect(0, 0, cachedTexture.width, cachedTexture.height), Vector2.zero);
+                    }
                 }
                 else
                 {
@@ -558,19 +635,18 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
                     if (texture != null)
                     {
                         iconCache[iconUrl] = texture;
-                        player2Icon.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
+                        if (player2Icon != null)
+                        {
+                            player2Icon.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
+                        }
                     }
                 }
-            }
-            else
-            {
-                player2Icon.sprite = null;
             }
         }
         else
         {
             player2Username.text = "";
-            player2Icon.sprite = null;
+            player2Icon.sprite = placeholderSprite;
         }
 
         playersConnectedText.text = $"{PhotonNetwork.CurrentRoom.PlayerCount}/{PhotonNetwork.CurrentRoom.MaxPlayers}";
@@ -662,8 +738,8 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         // Clear lobby details
         player1Username.text = "";
         player2Username.text = "";
-        player1Icon.sprite = null;
-        player2Icon.sprite = null;
+        player1Icon.sprite = placeholderSprite;
+        player2Icon.sprite = placeholderSprite;
         playersConnectedText.text = "";
         ShowMatchmakingPanel();
 
@@ -711,7 +787,7 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     {
         string enteredPassword = joinPasswordInput.text;
 
-        // Find the room info from cached list
+        // Find the room info from cached room list
         RoomInfo roomInfo = cachedRoomList.Find(r => r.Name == roomToJoin);
 
         if (roomInfo != null)

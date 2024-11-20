@@ -2905,7 +2905,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 348103529}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1596932042}
+        m_TargetAssemblyTypeName: PhotonNetworkManager, Assembly-CSharp
+        m_MethodName: OnReturnToLevelSelectorButtonClicked
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &348103529
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12316,12 +12328,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d24975a22445dc440aa9b0742c0d986c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  player1Camera: {fileID: 1049078398}
+  player2Camera: {fileID: 1769208249}
   player1Prefab: {fileID: 8745309345191655653, guid: 82f9f9a3e23d81c4686e6115bf4128fb, type: 3}
   player2Prefab: {fileID: 7030915383169295377, guid: 5667e2ba999f75c4cae4516b2b813d0e, type: 3}
   player1SpawnPoint: {fileID: 1657631042}
   player2SpawnPoint: {fileID: 1993442566}
-  camera1: {fileID: 1049078398}
-  camera2: {fileID: 1769208249}
 --- !u!4 &1596932043
 Transform:
   m_ObjectHideFlags: 0

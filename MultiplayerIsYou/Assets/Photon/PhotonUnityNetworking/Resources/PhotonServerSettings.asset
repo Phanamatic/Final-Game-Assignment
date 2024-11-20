@@ -54,6 +54,7 @@ MonoBehaviour:
   - RPC_CheckPillarSequences
   - RPC_DestroyObject
   - RPC_CheckFlagSequences
+  - RPC_SetParentTag
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1
