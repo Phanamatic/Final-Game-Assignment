@@ -5,10 +5,8 @@ using UnityEngine.SceneManagement; // Import SceneManagement
 public class WinChecker : MonoBehaviour
 {
     public TextMeshProUGUI winText1;
-    public TextMeshProUGUI winText2;
 
     public TextMeshProUGUI defeatText1; // For defeat condition
-    public TextMeshProUGUI defeatText2; // For defeat condition
 
     // Radius for OverlapCircle to detect proximity
     public float checkRadius = 0.2f;
@@ -17,9 +15,7 @@ public class WinChecker : MonoBehaviour
     {
         // Initially hide the win and defeat texts
         winText1.gameObject.SetActive(false);
-        winText2.gameObject.SetActive(false);
         defeatText1.gameObject.SetActive(false);
-        defeatText2.gameObject.SetActive(false);
     }
 
     void Update()
@@ -95,7 +91,6 @@ public class WinChecker : MonoBehaviour
     void DisplayWinTexts()
     {
         winText1.gameObject.SetActive(true); // Show the first win text
-        winText2.gameObject.SetActive(true); // Show the second win text
     }
 
     void HandleDefeat(GameObject touchingObject)
@@ -111,7 +106,6 @@ public class WinChecker : MonoBehaviour
         {
             // Display defeat texts if no more You1 or You2 objects remain
             defeatText1.gameObject.SetActive(true);
-            defeatText2.gameObject.SetActive(true);
         }
     }
 

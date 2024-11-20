@@ -8,7 +8,7 @@ public class Tag_Checker : MonoBehaviour
     void Update()
     {
         CheckObjectSequences("Word_Skull", "Word_Is", "Word_Defeat", "Skull", "Defeat");
-        CheckObjectSequences("Word_Star", "Word_Is", "Word_Defeat", "Star", "Defeat");
+        //CheckObjectSequences("Word_Star", "Word_Is", "Word_Defeat", "Star", "Defeat");
 
 
         CheckRockSequences();
@@ -60,8 +60,10 @@ public class Tag_Checker : MonoBehaviour
         bool StarIsOpen = CheckSpecificSequence("Word_Star", "Word_Is", "Word_Open", "Star", "Open");
         bool StarIsPush = CheckSpecificSequence("Word_Star", "Word_Is", "Word_Push", "Star", "Push");
         bool StarIsWin = CheckSpecificSequence("Word_Star", "Word_Is", "Word_Win", "Star", "Win");
+        bool StarIsDefeat = CheckSpecificSequence("Word_Star", "Word_Is", "Word_Defeat", "Star", "Defeat");
 
-        if (!StarIsOpen && !StarIsPush && !StarIsWin)
+
+        if (!StarIsOpen && !StarIsPush && !StarIsWin && !StarIsDefeat)
         {
             SetParentTagsForAll(false, "Star", "Untagged");
         }
@@ -71,6 +73,10 @@ public class Tag_Checker : MonoBehaviour
             if (StarIsPush && StarIsOpen)
             {
                 SetParentTagsForAll(true, "Star", "OpenAndPush");
+            }
+            else if (StarIsDefeat)
+            {
+                SetParentTagsForAll(true, "Star", "Defeat");
             }
             else if (StarIsOpen)
             {

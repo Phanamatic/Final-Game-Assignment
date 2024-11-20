@@ -33,13 +33,14 @@ public class Player1Controller : MonoBehaviour
     void MovePlayer()
     {
         Vector3 targetPosition = transform.position + moveDirection;
-        Collider2D hitCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
 
         // Check if the player is colliding with a Shut object
-        if (hitCollider != null && hitCollider.CompareTag("Shut"))
+        Collider2D shutCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
+
+        if (shutCollider != null && shutCollider.CompareTag("Shut"))
         {
             // Only block movement if it's not a "OpenAndPush" object
-            if (!HasOpenAndPushTag(hitCollider.gameObject))
+            if (!HasOpenAndPushTag(shutCollider.gameObject))
             {
                 Debug.Log("Blocked by a Shut object!");
                 return; // Prevent moving into Shut objects
@@ -47,6 +48,8 @@ public class Player1Controller : MonoBehaviour
         }
 
         // Handle other collisions and pushing logic
+        Collider2D hitCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
+
         if (hitCollider != null)
         {
             if (hitCollider.CompareTag("Stop"))
@@ -79,34 +82,32 @@ public class Player1Controller : MonoBehaviour
 
     bool CanPushChain(GameObject firstObject, Vector3 direction)
     {
-        Queue<GameObject> toPush = new Queue<GameObject>();
-        toPush.Enqueue(firstObject);
+        List<GameObject> chain = new List<GameObject>();
+        Vector3 nextPosition = firstObject.transform.position;
 
-        while (toPush.Count > 0)
+        while (true)
         {
-            GameObject obj = toPush.Dequeue();
-            Vector3 targetPosition = obj.transform.position + direction * pushDistance;
-
-            // Check if the target position is blocked by a Shut object
-            Collider2D pushBlockCheck = Physics2D.OverlapCircle(targetPosition, 0.2f);
-            if (pushBlockCheck != null && pushBlockCheck.CompareTag("Shut"))
+            Collider2D hit = Physics2D.OverlapCircle(nextPosition, 0.1f);
+            if (hit != null && IsPushable(hit.gameObject))
             {
-                // If it's an "OpenAndPush" object, don't block
-                if (!HasOpenAndPushTag(obj))
-                {
-                    Debug.Log($"Blocked by a Shut object at {targetPosition}.");
-                    return false;
-                }
+                chain.Add(hit.gameObject);
+                nextPosition += direction * pushDistance;
             }
-
-            // Check for adjacent pushable objects
-            Collider2D adjacentCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
-            if (adjacentCollider != null && IsPushable(adjacentCollider.gameObject))
+            else
             {
-                if (!toPush.Contains(adjacentCollider.gameObject))
-                {
-                    toPush.Enqueue(adjacentCollider.gameObject);
-                }
+                break;
+            }
+        }
+
+        foreach (GameObject chainObj in chain)
+        {
+            Vector3 targetPosition = chainObj.transform.position + direction * pushDistance;
+            Collider2D hitCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
+
+            if (hitCollider != null && hitCollider.CompareTag("Stop"))
+            {
+                Debug.Log($"Chain blocked at {targetPosition} by Stop.");
+                return false;
             }
         }
 
@@ -115,30 +116,41 @@ public class Player1Controller : MonoBehaviour
 
     void PushObject(GameObject obj, Vector3 direction)
     {
-        Vector3 pushTargetPosition = obj.transform.position + direction * pushDistance;
-        obj.transform.position = pushTargetPosition;
+        List<GameObject> chain = new List<GameObject>();
+        Vector3 nextPosition = obj.transform.position;
 
-        // Check for adjacent pushable objects and push them
-        Collider2D adjacentCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
-        if (adjacentCollider != null && IsPushable(adjacentCollider.gameObject))
+        while (true)
         {
-            PushObject(adjacentCollider.gameObject, direction);
-        }
-
-        // Destroy Shut and OpenAndPush objects if pushed into each other
-        Collider2D shutCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
-        if (shutCollider != null && shutCollider.CompareTag("Shut"))
-        {
-            if (HasOpenAndPushTag(obj)) // Both objects get destroyed
+            Collider2D hit = Physics2D.OverlapCircle(nextPosition, 0.1f);
+            if (hit != null && IsPushable(hit.gameObject))
             {
-                Destroy(shutCollider.gameObject); // Destroy Shut object
-                Destroy(obj); // Destroy OpenAndPush object
-                Debug.Log($"Shut and OpenAndPush objects destroyed at {pushTargetPosition}!");
+                chain.Add(hit.gameObject);
+                nextPosition += direction * pushDistance;
             }
             else
             {
-                Debug.Log($"Shut object at {pushTargetPosition} not destroyed - missing OpenAndPush!");
+                break;
             }
+        }
+
+        foreach (GameObject chainObj in chain)
+        {
+            Vector3 targetPosition = chainObj.transform.position + direction * pushDistance;
+            Collider2D shutCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
+
+            // Handle Shut and OpenAndPush interaction
+            if (shutCollider != null && shutCollider.CompareTag("Shut"))
+            {
+                if (chainObj.CompareTag("OpenAndPush"))
+                {
+                    Destroy(shutCollider.gameObject); // Destroy Shut object
+                    Destroy(chainObj); // Destroy OpenAndPush object
+                    Debug.Log($"Shut and {chainObj.name} destroyed at {targetPosition}!");
+                    return; // Stop further movement for this chain
+                }
+            }
+
+            chainObj.transform.position += direction * pushDistance;
         }
     }
 
