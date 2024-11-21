@@ -6899,6 +6899,7 @@ MonoBehaviour:
   menuPanel: {fileID: 1144994021}
   matchmakingPanel: {fileID: 2008412803}
   profilePanel: {fileID: 412524330}
+  accountPanel: {fileID: 1920269858}
   profileIconButtons:
   - {fileID: 571436712}
   - {fileID: 1523374394}

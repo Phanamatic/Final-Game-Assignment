@@ -1,55 +1,40 @@
 using TMPro;
 using UnityEngine;
-using Photon.Pun;
 using UnityEngine.SceneManagement;
+using Photon.Pun;
+using System.Collections;
 
-public class WinChecker2Flags : MonoBehaviourPunCallbacks
+public class WinChecker2Flags : MonoBehaviourPun
 {
     public TextMeshProUGUI winText1;
-    public TextMeshProUGUI winText2;
+    public TextMeshProUGUI defeatText1;
+    public TextMeshProUGUI countdownText;
 
-    public TextMeshProUGUI defeatText1; // For defeat condition
-    public TextMeshProUGUI defeatText2; // For defeat condition
-
-    // Radius for OverlapCircle to detect proximity
     public float checkRadius = 0.2f;
+    private bool coroutineStarted = false;
 
     void Start()
     {
-        // Initially hide the win and defeat texts
         winText1.gameObject.SetActive(false);
-        winText2.gameObject.SetActive(false);
         defeatText1.gameObject.SetActive(false);
-        defeatText2.gameObject.SetActive(false);
+        countdownText.gameObject.SetActive(false);
     }
 
     void Update()
     {
-        if (PhotonNetwork.IsMasterClient) // Only run the checks on the master client
+        if (!PhotonNetwork.IsMasterClient)
         {
-            CheckWinAndDefeatConditions();
+            return;
         }
 
-        // Allow any player to reload the scene on pressing "R"
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            ReloadScene();
-        }
-    }
-
-    void CheckWinAndDefeatConditions()
-    {
-        // Check if any object with tag "You1" or "You2" is near an object with the tag "Win"
         GameObject[] you1Objects = GameObject.FindGameObjectsWithTag("You1");
         GameObject[] you2Objects = GameObject.FindGameObjectsWithTag("You2");
         GameObject[] winObjects = GameObject.FindGameObjectsWithTag("Win");
         GameObject[] defeatObjects = GameObject.FindGameObjectsWithTag("Defeat");
 
-        // Both You1 and You2 must be touching Win for the win text to appear
         bool isYou1TouchingWin = CheckOverlap(you1Objects, winObjects);
         bool isYou2TouchingWin = CheckOverlap(you2Objects, winObjects);
 
-        // Check for defeat conditions
         GameObject touchingDefeatObj = GetTouchingDefeat(you1Objects, defeatObjects) ?? GetTouchingDefeat(you2Objects, defeatObjects);
 
         if (isYou1TouchingWin && isYou2TouchingWin)
@@ -59,11 +44,14 @@ public class WinChecker2Flags : MonoBehaviourPunCallbacks
 
         if (touchingDefeatObj != null)
         {
-            PhotonView defeatPhotonView = touchingDefeatObj.GetComponent<PhotonView>();
-            if (defeatPhotonView != null)
-            {
-                photonView.RPC("HandleDefeat", RpcTarget.All, defeatPhotonView.ViewID);
-            }
+            int touchingObjectViewID = touchingDefeatObj.GetComponent<PhotonView>().ViewID;
+            photonView.RPC("HandleDefeat", RpcTarget.All, touchingObjectViewID);
+        }
+
+        // Check if player presses "R" to reload the scene
+        if (Input.GetKeyDown(KeyCode.R) && IsRestartEnabled())
+        {
+            ReloadScene();
         }
     }
 
@@ -73,14 +61,13 @@ public class WinChecker2Flags : MonoBehaviourPunCallbacks
         {
             foreach (GameObject targetObj in targetObjects)
             {
-                // Use OverlapCircle to detect proximity
                 Collider2D[] colliders = Physics2D.OverlapCircleAll(youObj.transform.position, checkRadius);
 
                 foreach (Collider2D collider in colliders)
                 {
-                    if (collider.gameObject == targetObj) // Check if the target object (Win or Defeat) is within range
+                    if (collider.gameObject == targetObj)
                     {
-                        return true; // Detected proximity between You and target objects
+                        return true;
                     }
                 }
             }
@@ -88,7 +75,6 @@ public class WinChecker2Flags : MonoBehaviourPunCallbacks
         return false;
     }
 
-    // New method to return the object that is touching the defeat object
     GameObject GetTouchingDefeat(GameObject[] youObjects, GameObject[] defeatObjects)
     {
         foreach (GameObject youObj in youObjects)
@@ -101,45 +87,94 @@ public class WinChecker2Flags : MonoBehaviourPunCallbacks
                 {
                     if (collider.gameObject == defeatObj)
                     {
-                        return youObj; // Return the You object that touched the Defeat object
+                        return youObj;
                     }
                 }
             }
         }
-        return null; // No object found touching defeat
+        return null;
     }
 
     [PunRPC]
     void DisplayWinTexts()
     {
-        winText1.gameObject.SetActive(true); // Show the first win text
-        winText2.gameObject.SetActive(true); // Show the second win text
+        winText1.gameObject.SetActive(true);
+
+        if (!coroutineStarted)
+        {
+            coroutineStarted = true;
+            StartCoroutine(ReturnToLevelSelectorAfterDelay(5f));
+        }
     }
 
     [PunRPC]
-    void HandleDefeat(int objectViewID)
+    void HandleDefeat(int touchingObjectViewID)
     {
-        PhotonView objView = PhotonView.Find(objectViewID);
-        if (objView != null)
+        PhotonView touchingObjectPV = PhotonView.Find(touchingObjectViewID);
+        if (touchingObjectPV != null)
         {
-            objView.gameObject.SetActive(false); // Deactivate the object that touched the defeat object
+            touchingObjectPV.gameObject.SetActive(false);
         }
 
-        // Check if there are no more You1 or You2 objects left in the scene
         GameObject[] remainingYou1Objects = GameObject.FindGameObjectsWithTag("You1");
         GameObject[] remainingYou2Objects = GameObject.FindGameObjectsWithTag("You2");
 
         if (remainingYou1Objects.Length == 0 || remainingYou2Objects.Length == 0)
         {
             defeatText1.gameObject.SetActive(true);
-            defeatText2.gameObject.SetActive(true);
+
+            if (!coroutineStarted)
+            {
+                coroutineStarted = true;
+                StartCoroutine(RestartLevelCountdown());
+            }
         }
     }
 
-    // Method to reload the current scene when the player presses "R"
+    IEnumerator RestartLevelCountdown()
+    {
+        int countdown = 5;
+        while (countdown > 0)
+        {
+            photonView.RPC("UpdateCountdownText", RpcTarget.All, countdown);
+            yield return new WaitForSeconds(1f);
+            countdown--;
+        }
+        photonView.RPC("RestartLevel", RpcTarget.All);
+    }
+
+    [PunRPC]
+    void UpdateCountdownText(int countdown)
+    {
+        countdownText.gameObject.SetActive(true);
+        string dots = new string('.', (5 - countdown) % 4);
+        countdownText.text = $"Restarting level in {countdown}{dots}";
+    }
+
+    [PunRPC]
+    void RestartLevel()
+    {
+        Time.timeScale = 1f; // Ensure time scale is reset
+        PhotonNetwork.LoadLevel(PhotonNetwork.CurrentRoom.CustomProperties["CurrentLevel"].ToString());
+    }
+
+    IEnumerator ReturnToLevelSelectorAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        if (PhotonNetwork.IsMasterClient)
+        {
+            PhotonNetwork.LoadLevel("LevelSelector");
+        }
+    }
+
     void ReloadScene()
     {
-        // Reload the currently active scene
-        PhotonNetwork.LoadLevel(SceneManager.GetActiveScene().name);
+        PhotonNetwork.LoadLevel(PhotonNetwork.CurrentRoom.CustomProperties["CurrentLevel"].ToString());
+    }
+
+    bool IsRestartEnabled()
+    {
+        return PlayerPrefs.GetInt("RestartEnabled", 1) == 1;
     }
 }

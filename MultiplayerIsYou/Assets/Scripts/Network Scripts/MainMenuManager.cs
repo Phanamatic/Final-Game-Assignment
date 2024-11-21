@@ -23,6 +23,13 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
     public GameObject menuPanel;
     public GameObject matchmakingPanel;
     public GameObject profilePanel;
+    public GameObject accountPanel;
+
+    // New Rejoin Panel
+    [Header("Rejoin Panel")]
+    public GameObject rejoinPanel;
+    public Button rejoinButton;
+    public Button cancelRejoinButton;
 
     [Header("Profile Menu Elements")]
     public Button[] profileIconButtons; // Assign the preset icon buttons here
@@ -48,6 +55,15 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
 
         // Load environment variables
         string envFilePath = "";
+
+        // Ensure PhotonNetwork automatically syncs scenes before connecting
+        PhotonNetwork.AutomaticallySyncScene = true;
+
+        // Now proceed to connect to Photon if not already connected
+        if (!PhotonNetwork.IsConnected)
+        {
+            PhotonNetwork.ConnectUsingSettings();
+        }
 
 #if UNITY_EDITOR
         // In the Unity Editor, the project root is one level up from Application.dataPath
@@ -80,8 +96,103 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
 
     private void Start()
     {
-        // Set the OnClick listeners in the Unity Inspector
+        // Check if the player was previously in a game room
+        if (GameState.WasInGameRoom && !string.IsNullOrEmpty(GameState.LastRoomName))
+        {
+            // Show the rejoin panel
+            rejoinPanel.SetActive(true);
+            menuPanel.SetActive(false);
+
+            // Assign button listeners
+            rejoinButton.onClick.AddListener(OnRejoinButtonClicked);
+            cancelRejoinButton.onClick.AddListener(OnCancelRejoinButtonClicked);
+        }
+        else
+        {
+            // Normal startup
+            rejoinPanel.SetActive(false);
+            menuPanel.SetActive(true);
+        }
+
         UpdateMenuUI();
+    }
+
+    public void OnRejoinButtonClicked()
+    {
+        if (PhotonNetwork.IsConnected)
+        {
+            // Attempt to rejoin the room
+            PhotonNetwork.RejoinRoom(GameState.LastRoomName);
+        }
+        else
+        {
+            // Connect to Photon first
+            PhotonNetwork.ConnectUsingSettings();
+        }
+    }
+
+    public void OnCancelRejoinButtonClicked()
+    {
+        // Reset the game state
+        GameState.WasInGameRoom = false;
+        GameState.LastRoomName = "";
+
+        rejoinPanel.SetActive(false);
+        menuPanel.SetActive(true);
+    }
+
+    public override void OnConnectedToMaster()
+    {
+        Debug.Log("Connected to Photon Master Server.");
+
+        if (GameState.WasInGameRoom && !string.IsNullOrEmpty(GameState.LastRoomName))
+        {
+            // Attempt to rejoin the room
+            PhotonNetwork.RejoinRoom(GameState.LastRoomName);
+        }
+        else
+        {
+            // Additional logic if needed
+        }
+    }
+
+    public override void OnJoinRoomFailed(short returnCode, string message)
+    {
+        Debug.LogError($"Failed to rejoin room: {message}");
+
+        // Room might have been closed; reset game state
+        GameState.WasInGameRoom = false;
+        GameState.LastRoomName = "";
+
+        // Show the main menu
+        rejoinPanel.SetActive(false);
+        menuPanel.SetActive(true);
+    }
+
+    public override void OnJoinedRoom()
+    {
+        Debug.Log("Rejoined the room successfully.");
+
+        // Reset the rejoin state
+        GameState.WasInGameRoom = false;
+        GameState.LastRoomName = "";
+
+        // Load the game scene
+        if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("CurrentLevel", out object levelName))
+        {
+            PhotonNetwork.LoadLevel((string)levelName);
+        }
+        else
+        {
+            // Fallback to default scene
+            PhotonNetwork.LoadLevel("LevelSelector");
+        }
+    }
+
+    public override void OnLeftRoom()
+    {
+        // Set a flag to indicate that we are returning from the game
+        GameState.IsReturningFromGame = true;
     }
 
     public override void OnPlayerPropertiesUpdate(Photon.Realtime.Player targetPlayer, ExitGames.Client.Photon.Hashtable changedProps)

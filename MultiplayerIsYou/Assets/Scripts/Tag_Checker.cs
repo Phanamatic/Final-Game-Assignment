@@ -1,29 +1,30 @@
 using System.Collections;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 using Photon.Pun;
 
-public class Tag_Checker : MonoBehaviourPunCallbacks
+public class Tag_Checker : MonoBehaviourPun
 {
     void Update()
     {
-        if (PhotonNetwork.IsMasterClient) // Run only on the master client
+        if (!PhotonNetwork.IsMasterClient)
         {
-            // Check sequences for various objects
-            CheckObjectSequences("Word_Skull", "Word_Is", "Word_Defeat", "Skull", "Defeat");
-            CheckObjectSequences("Word_Star", "Word_Is", "Word_Defeat", "Star", "Defeat");
-
-            CheckRockSequences();
-            CheckBabaSequences();
-            CheckWallSequences();
-            CheckLalaSequences();
-            CheckFlagSequences();
-            CheckPillarSequences();
-            CheckDoorSequences();
-            CheckKeySequences();
-            CheckStarSequences();
+            return;
         }
+
+        // Perform tag checks
+        CheckObjectSequences("Word_Skull", "Word_Is", "Word_Defeat", "Skull", "Defeat");
+        // CheckObjectSequences("Word_Star", "Word_Is", "Word_Defeat", "Star", "Defeat");
+
+        CheckRockSequences();
+        CheckBabaSequences();
+        CheckWallSequences();
+        CheckLalaSequences();
+        CheckFlagSequences();
+        CheckPillarSequences();
+        CheckDoorSequences();
+        CheckKeySequences();
+        CheckStarSequences();
     }
 
     void CheckKeySequences()
@@ -34,26 +35,26 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
 
         if (!KeyIsOpen && !KeyIsPush && !KeyIsWin)
         {
-            SetParentTagsForAll(false, "Key", "Untagged");
+            photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, false, "Key", "Untagged");
         }
         else
         {
             // Check combined conditions first
             if (KeyIsPush && KeyIsOpen)
             {
-                SetParentTagsForAll(true, "Key", "OpenAndPush");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Key", "OpenAndPush");
             }
             else if (KeyIsOpen)
             {
-                SetParentTagsForAll(true, "Key", "Open");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Key", "Open");
             }
             else if (KeyIsPush)
             {
-                SetParentTagsForAll(true, "Key", "Push");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Key", "Push");
             }
             else if (KeyIsWin)
             {
-                SetParentTagsForAll(true, "Key", "Win");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Key", "Win");
             }
         }
     }
@@ -63,29 +64,34 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
         bool StarIsOpen = CheckSpecificSequence("Word_Star", "Word_Is", "Word_Open", "Star", "Open");
         bool StarIsPush = CheckSpecificSequence("Word_Star", "Word_Is", "Word_Push", "Star", "Push");
         bool StarIsWin = CheckSpecificSequence("Word_Star", "Word_Is", "Word_Win", "Star", "Win");
+        bool StarIsDefeat = CheckSpecificSequence("Word_Star", "Word_Is", "Word_Defeat", "Star", "Defeat");
 
-        if (!StarIsOpen && !StarIsPush && !StarIsWin)
+        if (!StarIsOpen && !StarIsPush && !StarIsWin && !StarIsDefeat)
         {
-            SetParentTagsForAll(false, "Star", "Untagged");
+            photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, false, "Star", "Untagged");
         }
         else
         {
             // Check combined conditions first
             if (StarIsPush && StarIsOpen)
             {
-                SetParentTagsForAll(true, "Star", "OpenAndPush");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Star", "OpenAndPush");
+            }
+            else if (StarIsDefeat)
+            {
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Star", "Defeat");
             }
             else if (StarIsOpen)
             {
-                SetParentTagsForAll(true, "Star", "Open");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Star", "Open");
             }
             else if (StarIsPush)
             {
-                SetParentTagsForAll(true, "Star", "Push");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Star", "Push");
             }
             else if (StarIsWin)
             {
-                SetParentTagsForAll(true, "Star", "Win");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Star", "Win");
             }
         }
     }
@@ -99,29 +105,37 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
 
         if (!DoorIsPush && !DoorIsShut && !DoorIsWin && !DoorIsStop)
         {
-            SetParentTagsForAll(false, "Door", "Untagged");
+            photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, false, "Door", "Untagged");
         }
         else
         {
             if (DoorIsShut && DoorIsStop)
             {
-                SetParentTagsForAll(true, "Door", "Shut");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Door", "Shut");
             }
             else if (DoorIsWin)
             {
-                SetParentTagsForAll(true, "Door", "Win");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Door", "Win");
             }
             else if (DoorIsShut)
             {
-                SetParentTagsForAll(true, "Door", "Shut");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Door", "Shut");
             }
             else if (DoorIsPush)
             {
-                SetParentTagsForAll(true, "Door", "Push");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Door", "Push");
             }
             else if (DoorIsStop)
             {
-                SetParentTagsForAll(true, "Door", "Stop");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Door", "Stop");
+            }
+            else if (DoorIsWin && DoorIsStop)
+            {
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Door", "Stop");
+            }
+            else if (DoorIsPush && DoorIsStop)
+            {
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Door", "Push");
             }
         }
     }
@@ -136,30 +150,38 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
 
         if (!PillarIsDefeat && !PillarIsPush && !PillarIsThem1 && !PillarIsYou1 && !PillarIsOpen)
         {
-            SetParentTagsForAll(false, "Pillar", "Untagged");
+            photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, false, "Pillar", "Untagged");
         }
         else
         {
             // At least one sequence is found; set to the appropriate tag
             if (PillarIsPush && PillarIsOpen)
             {
-                SetParentTagsForAll(true, "Pillar", "OpenAndPush");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Pillar", "OpenAndPush");
             }
-            else if (PillarIsYou1 || PillarIsThem1)
+            else if (PillarIsYou1)
             {
-                SetParentTagsForAll(true, "Pillar", "You1");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Pillar", "You1");
             }
             else if (PillarIsOpen)
             {
-                SetParentTagsForAll(true, "Pillar", "Open");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Pillar", "Open");
             }
             else if (PillarIsDefeat)
             {
-                SetParentTagsForAll(true, "Pillar", "Defeat");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Pillar", "Defeat");
             }
             else if (PillarIsPush)
             {
-                SetParentTagsForAll(true, "Pillar", "Push");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Pillar", "Push");
+            }
+            else if (PillarIsThem1)
+            {
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Pillar", "You1");
+            }
+            else if (PillarIsThem1 && PillarIsPush)
+            {
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Pillar", "You1");
             }
         }
     }
@@ -171,17 +193,17 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
 
         if (!FlagIsStop && !FlagIsWin)
         {
-            SetParentTagsForAll(false, "Flag", "Untagged");
+            photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, false, "Flag", "Untagged");
         }
         else
         {
             if (FlagIsWin)
             {
-                SetParentTagsForAll(true, "Flag", "Win");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Flag", "Win");
             }
             else if (FlagIsStop)
             {
-                SetParentTagsForAll(true, "Flag", "Stop");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Flag", "Stop");
             }
         }
     }
@@ -195,29 +217,33 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
 
         if (!RockIsStop && !RockIsThem1 && !RockIsOpen && !RockIsPush)
         {
-            SetParentTagsForAll(false, "Rock", "Untagged");
+            photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, false, "Rock", "Untagged");
         }
         else
         {
             if (RockIsPush && RockIsOpen)
             {
-                SetParentTagsForAll(true, "Rock", "OpenAndPush");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Rock", "OpenAndPush");
             }
             else if (RockIsOpen)
             {
-                SetParentTagsForAll(true, "Rock", "Open");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Rock", "Open");
             }
             else if (RockIsThem1)
             {
-                SetParentTagsForAll(true, "Rock", "You1");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Rock", "You1");
             }
             else if (RockIsPush)
             {
-                SetParentTagsForAll(true, "Rock", "Push");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Rock", "Push");
             }
             else if (RockIsStop)
             {
-                SetParentTagsForAll(true, "Rock", "Stop");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Rock", "Stop");
+            }
+            else if (RockIsThem1 && RockIsStop)
+            {
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Rock", "Stop");
             }
         }
     }
@@ -229,11 +255,14 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
 
         if (!LalaIsYou2 && !LalaIsThem2)
         {
-            SetParentTagsForAll(false, "Lala", "Untagged");
+            photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, false, "Lala", "Untagged");
         }
         else
         {
-            SetParentTagsForAll(true, "Lala", "You2");
+            if (LalaIsThem2 || LalaIsYou2)
+            {
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Lala", "You2");
+            }
         }
     }
 
@@ -244,11 +273,14 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
 
         if (!BabaIsYou1 && !BabaIsThem1)
         {
-            SetParentTagsForAll(false, "Baba", "Untagged");
+            photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, false, "Baba", "Untagged");
         }
         else
         {
-            SetParentTagsForAll(true, "Baba", "You1");
+            if (BabaIsThem1 || BabaIsYou1)
+            {
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Baba", "You1");
+            }
         }
     }
 
@@ -260,21 +292,21 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
 
         if (!wallIsStopFound && !wallIsYouFound && !wallIsWinFound)
         {
-            SetParentTagsForAll(false, "Wall", "Untagged");
+            photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, false, "Wall", "Untagged");
         }
         else
         {
             if (wallIsYouFound)
             {
-                SetParentTagsForAll(true, "Wall", "You2");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Wall", "You2");
             }
             else if (wallIsStopFound)
             {
-                SetParentTagsForAll(true, "Wall", "Stop");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Wall", "Stop");
             }
             else if (wallIsWinFound)
             {
-                SetParentTagsForAll(true, "Wall", "Win");
+                photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Wall", "Win");
             }
         }
     }
@@ -285,11 +317,11 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
 
         if (!sequenceFound)
         {
-            SetParentTagsForAll(false, targetTag, "Untagged");
+            photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, false, targetTag, "Untagged");
         }
         else
         {
-            SetParentTagsForAll(true, targetTag, newParentTag);
+            photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, targetTag, newParentTag);
         }
     }
 
@@ -333,7 +365,12 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
         return Mathf.Abs(pos1.y - pos2.y) < 1.1f && Mathf.Abs(pos1.x - pos2.x) < 0.01f;
     }
 
-    // This method finds all objects with the given tag and changes their parent's tag, synchronized over the network
+    [PunRPC]
+    void SyncSetParentTagsForAll(bool isSequence, string childTag, string newTag)
+    {
+        SetParentTagsForAll(isSequence, childTag, newTag);
+    }
+
     void SetParentTagsForAll(bool isSequence, string childTag, string newTag)
     {
         GameObject[] targetObjects = GameObject.FindGameObjectsWithTag(childTag);
@@ -346,19 +383,7 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
 
                 if (parentObject != null)
                 {
-                    PhotonView parentPhotonView = parentObject.GetComponent<PhotonView>();
-
-                    if (parentPhotonView != null)
-                    {
-                        // Synchronize tag change across all clients
-                        photonView.RPC("RPC_SetParentTag", RpcTarget.AllBuffered, parentPhotonView.ViewID, isSequence ? newTag : "Untagged");
-                    }
-                    else
-                    {
-                        // If the parent doesn't have a PhotonView, we change the tag locally (not synchronized)
-                        parentObject.tag = isSequence ? newTag : "Untagged";
-                    }
-
+                    parentObject.tag = isSequence ? newTag : "Untagged";
                     Debug.Log(isSequence
                         ? $"Sequence found: Parent's tag set to '{newTag}'"
                         : "Broken sequence: Parent's tag set to 'Untagged'");
@@ -368,16 +393,6 @@ public class Tag_Checker : MonoBehaviourPunCallbacks
                     Debug.LogWarning($"The '{childTag}' object does not have a parent.");
                 }
             }
-        }
-    }
-
-    [PunRPC]
-    void RPC_SetParentTag(int parentViewID, string newTag)
-    {
-        PhotonView parentPhotonView = PhotonView.Find(parentViewID);
-        if (parentPhotonView != null)
-        {
-            parentPhotonView.gameObject.tag = newTag;
         }
     }
 }

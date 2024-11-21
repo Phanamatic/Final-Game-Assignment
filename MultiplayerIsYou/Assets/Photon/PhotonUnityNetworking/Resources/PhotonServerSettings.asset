@@ -55,6 +55,27 @@ MonoBehaviour:
   - RPC_DestroyObject
   - RPC_CheckFlagSequences
   - RPC_SetParentTag
+  - DisplayDefeatTextsRPC
+  - DisplayWinTextsRPC
+  - HandleDefeatRPC
+  - MovePlayerRPC
+  - PushObjectRPC
+  - ReloadSceneRPC
+  - SetParentTagsForAllRPC
+  - SetTextsActiveRPC
+  - SyncMovePlayer
+  - SyncPushObjects
+  - SyncSetParentTagsForAll
+  - SyncMovePlayerAndPushObjects
+  - PauseGame
+  - PlayerReadyToResume
+  - RestartLevel
+  - ResumeGame
+  - UpdateCountdownText
+  - ResetGameStates
+  - RequestRestartLevel
+  - RequestLoadLevelSelector
+  - ResetGameStatesNormal
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

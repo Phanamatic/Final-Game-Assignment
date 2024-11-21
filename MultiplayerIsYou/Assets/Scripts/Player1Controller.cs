@@ -1,17 +1,26 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Photon.Pun;
 
-public class Player1Controller : MonoBehaviourPunCallbacks
+public class Player1Controller : MonoBehaviourPun
 {
     private Vector3 moveDirection;
     public float pushDistance = 1f; // Distance to push objects
+    private bool isMoving = false;
 
     void Update()
     {
-        // Ensure only the owner can control the GameObject
-        if (photonView.IsMine && gameObject.CompareTag("You1"))
+        if (!photonView.IsMine)
+        {
+            return;
+        }
+
+        if (PauseManager.Instance != null && PauseManager.Instance.isGamePaused)
+        {
+            return; // Don't process input if the game is paused
+        }
+
+        if (gameObject.CompareTag("You1"))
         {
             HandleMovementInput();
         }
@@ -19,12 +28,21 @@ public class Player1Controller : MonoBehaviourPunCallbacks
 
     void HandleMovementInput()
     {
+        if (isMoving)
+        {
+            return;
+        }
+
         moveDirection = Vector3.zero;
 
         if (Input.GetKeyDown(KeyCode.W)) moveDirection = Vector3.up;
-        if (Input.GetKeyDown(KeyCode.S)) moveDirection = Vector3.down;
-        if (Input.GetKeyDown(KeyCode.A)) moveDirection = Vector3.left;
-        if (Input.GetKeyDown(KeyCode.D)) moveDirection = Vector3.right;
+        else if (Input.GetKeyDown(KeyCode.S)) moveDirection = Vector3.down;
+        else if (Input.GetKeyDown(KeyCode.A)) moveDirection = Vector3.left;
+        else if (Input.GetKeyDown(KeyCode.D)) moveDirection = Vector3.right;
+        else
+        {
+            return;
+        }
 
         if (moveDirection != Vector3.zero)
         {
@@ -34,80 +52,199 @@ public class Player1Controller : MonoBehaviourPunCallbacks
 
     void MovePlayer()
     {
-        Vector3 targetPosition = transform.position + moveDirection;
-        Collider2D hitCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
+        isMoving = true;
 
-        // Check if the player is colliding with a Shut object
-        if (hitCollider != null && hitCollider.CompareTag("Shut"))
+        Vector3 targetPosition = transform.position + moveDirection;
+
+        // Snap target position to grid
+        targetPosition = SnapToGrid(targetPosition);
+
+        // Check for collisions and interactions
+        if (IsMovementBlocked(targetPosition))
         {
-            // Only block movement if it's not an "OpenAndPush" object
-            if (!HasOpenAndPushTag(hitCollider.gameObject))
+            isMoving = false;
+            return;
+        }
+
+        // Move the player locally
+        transform.position = targetPosition;
+
+        // Synchronize movement across the network
+        photonView.RPC("SyncMovePlayer", RpcTarget.Others, targetPosition);
+
+        isMoving = false;
+    }
+
+    [PunRPC]
+    void SyncMovePlayer(Vector3 newPosition)
+    {
+        transform.position = newPosition;
+    }
+
+    bool IsMovementBlocked(Vector3 targetPosition)
+    {
+        // Check for Shut objects
+        Collider2D shutCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
+
+        if (shutCollider != null && shutCollider.CompareTag("Shut"))
+        {
+            if (!HasOpenAndPushTag(shutCollider.gameObject))
             {
                 Debug.Log("Blocked by a Shut object!");
-                return; // Prevent moving into Shut objects
+                return true;
             }
         }
 
         // Handle other collisions and pushing logic
+        Collider2D hitCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
+
         if (hitCollider != null)
         {
             if (hitCollider.CompareTag("Stop"))
             {
                 Debug.Log("Blocked by a Stop object!");
-                return;
+                return true;
             }
             else if (IsPushable(hitCollider.gameObject))
             {
                 if (CanPushChain(hitCollider.gameObject, moveDirection))
                 {
                     PushObject(hitCollider.gameObject, moveDirection);
-                    transform.position = targetPosition;
+                    // Movement handled after pushing
                 }
                 else
                 {
                     Debug.Log("Cannot push the chain due to blocking objects!");
+                    return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    void PushObject(GameObject obj, Vector3 direction)
+    {
+        List<GameObject> chain = GetPushChain(obj, direction);
+
+        // Collect PhotonView IDs
+        int[] viewIDs = new int[chain.Count];
+        for (int i = 0; i < chain.Count; i++)
+        {
+            PhotonView pv = chain[i].GetComponent<PhotonView>();
+            if (pv != null)
+            {
+                viewIDs[i] = pv.ViewID;
             }
             else
             {
-                transform.position = targetPosition;
+                Debug.LogError("No PhotonView found on pushable object.");
             }
         }
-        else
+
+        // Move objects locally
+        foreach (GameObject chainObj in chain)
         {
-            transform.position = targetPosition;
+            Vector3 targetPosition = chainObj.transform.position + direction * pushDistance;
+
+            // Handle Shut and OpenAndPush interaction
+            Collider2D shutCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
+
+            if (shutCollider != null && shutCollider.CompareTag("Shut"))
+            {
+                if (chainObj.CompareTag("OpenAndPush"))
+                {
+                    PhotonNetwork.Destroy(shutCollider.gameObject);
+                    PhotonNetwork.Destroy(chainObj);
+                    Debug.Log($"Shut and {chainObj.name} destroyed at {targetPosition}!");
+                    return;
+                }
+            }
+
+            chainObj.transform.position = targetPosition;
         }
+
+        // Synchronize pushing across the network
+        photonView.RPC("SyncPushObjects", RpcTarget.Others, viewIDs, direction);
+    }
+
+    [PunRPC]
+    void SyncPushObjects(int[] viewIDs, Vector3 direction)
+    {
+        foreach (int viewID in viewIDs)
+        {
+            PhotonView pv = PhotonView.Find(viewID);
+            if (pv != null)
+            {
+                GameObject chainObj = pv.gameObject;
+
+                Vector3 targetPosition = chainObj.transform.position + direction * pushDistance;
+
+                // Handle Shut and OpenAndPush interaction
+                Collider2D shutCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
+
+                if (shutCollider != null && shutCollider.CompareTag("Shut"))
+                {
+                    if (chainObj.CompareTag("OpenAndPush"))
+                    {
+                        PhotonNetwork.Destroy(shutCollider.gameObject);
+                        PhotonNetwork.Destroy(chainObj);
+                        Debug.Log($"Shut and {chainObj.name} destroyed at {targetPosition}!");
+                        return;
+                    }
+                }
+
+                chainObj.transform.position = targetPosition;
+            }
+            else
+            {
+                Debug.LogError($"No PhotonView found for ViewID {viewID}");
+            }
+        }
+    }
+
+    List<GameObject> GetPushChain(GameObject obj, Vector3 direction)
+    {
+        List<GameObject> chain = new List<GameObject>();
+        Vector3 nextPosition = obj.transform.position;
+
+        while (true)
+        {
+            Collider2D hit = Physics2D.OverlapCircle(nextPosition, 0.1f);
+            if (hit != null && IsPushable(hit.gameObject))
+            {
+                chain.Add(hit.gameObject);
+                nextPosition += direction * pushDistance;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return chain;
     }
 
     bool CanPushChain(GameObject firstObject, Vector3 direction)
     {
-        Queue<GameObject> toPush = new Queue<GameObject>();
-        toPush.Enqueue(firstObject);
+        List<GameObject> chain = GetPushChain(firstObject, direction);
 
-        while (toPush.Count > 0)
+        foreach (GameObject chainObj in chain)
         {
-            GameObject obj = toPush.Dequeue();
-            Vector3 targetPosition = obj.transform.position + direction * pushDistance;
+            Vector3 targetPosition = chainObj.transform.position + direction * pushDistance;
+            Collider2D hitCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
 
-            // Check if the target position is blocked by a Shut object
-            Collider2D pushBlockCheck = Physics2D.OverlapCircle(targetPosition, 0.2f);
-            if (pushBlockCheck != null && pushBlockCheck.CompareTag("Shut"))
+            if (hitCollider != null)
             {
-                // If it's an "OpenAndPush" object, don't block
-                if (!HasOpenAndPushTag(obj))
+                if (hitCollider.CompareTag("Stop"))
                 {
-                    Debug.Log($"Blocked by a Shut object at {targetPosition}.");
+                    Debug.Log($"Chain blocked at {targetPosition} by Stop.");
                     return false;
                 }
-            }
-
-            // Check for adjacent pushable objects
-            Collider2D adjacentCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
-            if (adjacentCollider != null && IsPushable(adjacentCollider.gameObject))
-            {
-                if (!toPush.Contains(adjacentCollider.gameObject))
+                else if (hitCollider.CompareTag("Shut") && !chainObj.CompareTag("OpenAndPush"))
                 {
-                    toPush.Enqueue(adjacentCollider.gameObject);
+                    Debug.Log($"Chain blocked at {targetPosition} by Shut.");
+                    return false;
                 }
             }
         }
@@ -115,87 +252,13 @@ public class Player1Controller : MonoBehaviourPunCallbacks
         return true;
     }
 
-    void PushObject(GameObject obj, Vector3 direction)
-    {
-        Vector3 pushTargetPosition = obj.transform.position + direction * pushDistance;
-
-        // Move the object on all clients
-        PhotonView objPhotonView = obj.GetComponent<PhotonView>();
-        if (objPhotonView != null)
-        {
-            photonView.RPC("RPC_MoveObject", RpcTarget.All, objPhotonView.ViewID, pushTargetPosition);
-        }
-        else
-        {
-            Debug.LogError("Object does not have a PhotonView component.");
-        }
-
-        // Check for adjacent pushable objects and push them
-        Collider2D adjacentCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
-        if (adjacentCollider != null && IsPushable(adjacentCollider.gameObject))
-        {
-            PushObject(adjacentCollider.gameObject, direction);
-        }
-
-        // Destroy Shut and OpenAndPush objects if pushed into each other
-        Collider2D shutCollider = Physics2D.OverlapCircle(pushTargetPosition, 0.1f);
-        if (shutCollider != null && shutCollider.CompareTag("Shut"))
-        {
-            if (HasOpenAndPushTag(obj)) // Both objects get destroyed
-            {
-                PhotonView shutPhotonView = shutCollider.GetComponent<PhotonView>();
-                if (shutPhotonView != null)
-                {
-                    photonView.RPC("RPC_DestroyObject", RpcTarget.All, shutPhotonView.ViewID);
-                }
-                else
-                {
-                    Debug.LogError("Shut object does not have a PhotonView component.");
-                }
-
-                if (objPhotonView != null)
-                {
-                    photonView.RPC("RPC_DestroyObject", RpcTarget.All, objPhotonView.ViewID);
-                }
-
-                Debug.Log($"Shut and OpenAndPush objects destroyed at {pushTargetPosition}!");
-            }
-            else
-            {
-                Debug.Log($"Shut object at {pushTargetPosition} not destroyed - missing OpenAndPush!");
-            }
-        }
-    }
-
-    [PunRPC]
-    void RPC_MoveObject(int objectViewID, Vector3 newPosition)
-    {
-        PhotonView objView = PhotonView.Find(objectViewID);
-        if (objView != null)
-        {
-            objView.transform.position = newPosition;
-        }
-    }
-
-    [PunRPC]
-    void RPC_DestroyObject(int objectViewID)
-    {
-        PhotonView objView = PhotonView.Find(objectViewID);
-        if (objView != null)
-        {
-            Destroy(objView.gameObject);
-        }
-    }
-
     bool IsPushable(GameObject obj)
     {
-        // Check if the object has the "Push" or "OpenAndPush" tag, or if it has any child with the "Word" tag
         if (obj.CompareTag("Push") || obj.CompareTag("OpenAndPush"))
         {
             return true;
         }
 
-        // Also check if the object has any child with the "Word" tag
         foreach (Transform child in obj.transform)
         {
             if (child.CompareTag("Word"))
@@ -209,7 +272,13 @@ public class Player1Controller : MonoBehaviourPunCallbacks
 
     bool HasOpenAndPushTag(GameObject obj)
     {
-        // Only objects with "OpenAndPush" tag should push through Shut objects
         return obj.CompareTag("OpenAndPush");
+    }
+
+    Vector3 SnapToGrid(Vector3 position)
+    {
+        position.x = Mathf.Round(position.x);
+        position.y = Mathf.Round(position.y);
+        return position;
     }
 }
