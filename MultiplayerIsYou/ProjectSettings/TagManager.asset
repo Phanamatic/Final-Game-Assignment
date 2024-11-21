@@ -45,6 +45,14 @@ TagManager:
   - OpenAndPush
   - Open
   - Shut
+  - Word_Level
+  - Word_1
+  - Word_2
+  - Word_3
+  - Word_4
+  - Word_5
+  - Word_6
+  - Word_7
   layers:
   - Default
   - TransparentFX
