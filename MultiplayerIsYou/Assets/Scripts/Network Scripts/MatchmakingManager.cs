@@ -16,9 +16,8 @@ using ExitGames.Client.Photon;
 using System.Collections;
 using UnityEngine.Networking;
 using System.Net;
-using System.Threading; // For CancellationTokenSource
+using System.Threading;
 
-// Add this alias to resolve ambiguity
 using PhotonHashtable = ExitGames.Client.Photon.Hashtable;
 
 public class MatchmakingManager : MonoBehaviourPunCallbacks
@@ -26,8 +25,7 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     [Header("UI Elements")]
     public TMP_Text usernameText;
     public Image profileIconImage;
-    public Sprite placeholderSprite; // Placeholder sprite for icons
-
+    public Sprite placeholderSprite;
     [Header("Panels")]
     public GameObject matchmakingPanel;
     public GameObject mainMenuPanel;
@@ -35,34 +33,34 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     public GameObject createLobbyPanel;
 
     [Header("Lobby Lists")]
-    public Transform lobbyListParent; // ScrollView Content Parent
-    public GameObject lobbyPrefab;   // Prefab for displaying lobby details
+    public Transform lobbyListParent; 
+    public GameObject lobbyPrefab;  
 
     [Header("Lobby Creation Panel")]
     public TMP_InputField lobbyNameInput;
-    public GameObject passwordPanel; // Password panel for lobby creation
-    public TMP_InputField passwordInput; // Password input field for lobby creation
+    public GameObject passwordPanel; 
+    public TMP_InputField passwordInput; 
 
     [Header("Password Input Panel")]
-    public GameObject passwordInputPanel; // Panel to show when joining private room
-    public TMP_InputField joinPasswordInput; // Input field for password
-    private string roomToJoin; // Stores the name of the room the player wants to join
+    public GameObject passwordInputPanel; 
+    public TMP_InputField joinPasswordInput; 
+    private string roomToJoin;
 
     [Header("Joined Lobby Info")]
     public TMP_Text lobbyNameText, playersConnectedText, publicPrivateText;
     public Image player1Icon, player2Icon;
     public TMP_Text player1Username, player2Username;
-    public GameObject player1Panel, player2Panel; // Panels for player details
-    public TMP_Text waitingText; // Waiting text
+    public GameObject player1Panel, player2Panel;
+    public TMP_Text waitingText; 
     private Coroutine waitingCoroutine;
 
     [Header("Buttons")]
     public Button createGameButton, startGameButton, leaveButton, publicPrivateButton, confirmCreateLobbyButton;
 
-    private bool isLobbyPrivate = false; // Tracks if the lobby is private
-    private bool isReadyForOperations = false; // Tracks if the client is ready for room operations
+    private bool isLobbyPrivate = false; 
+    private bool isReadyForOperations = false; 
     private List<RoomInfo> cachedRoomList = new List<RoomInfo>();
-    public MainMenuManager mainMenuManager; // Reference to MainMenuManager
+    public MainMenuManager mainMenuManager; 
 
     private Dictionary<string, Texture2D> iconCache = new Dictionary<string, Texture2D>();
 
@@ -72,24 +70,21 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
 
     private void Awake()
     {
-        // Ensure TLS 1.2 is used
         ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
-        // Load environment variables
         string envFilePath = "";
 
 #if UNITY_EDITOR
-        // In the Unity Editor, the project root is one level up from Application.dataPath
+        // In the Unity Editor, the project root
         envFilePath = Path.Combine(Application.dataPath, "..", ".env");
 #else
         // In builds, include the .env file in StreamingAssets
         envFilePath = Path.Combine(Application.streamingAssetsPath, ".env");
 #endif
 
-        // Load environment variables from the specified path
         DotEnv.Load(new DotEnvOptions(envFilePaths: new[] { envFilePath }));
 
-        // Fetch AWS credentials and region from environment variables
+        // Fetch AWS credentials and region from environment variables secret hehe
         string accessKey = Environment.GetEnvironmentVariable("AWS_ACCESS_KEY");
         string secretKey = Environment.GetEnvironmentVariable("AWS_SECRET_KEY");
         string region = Environment.GetEnvironmentVariable("AWS_REGION");
@@ -109,7 +104,7 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
 
     private void Start()
     {
-        // Set AutomaticallySyncScene to true for synchronized scene loading
+        // Set AutomaticallySyncScene to true for synchronized scene loading so both player load the same scene
         PhotonNetwork.AutomaticallySyncScene = true;
 
         if (!PhotonNetwork.IsConnected)
@@ -123,7 +118,6 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
             PhotonNetwork.JoinLobby();
         }
 
-        // Update the profile icon at start
         UpdatePlayerProfileIcon();
     }
 
@@ -160,12 +154,10 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     {
         Debug.Log($"Room list updated. Total rooms: {roomList.Count}");
 
-        // Update the cached room list
         foreach (RoomInfo room in roomList)
         {
             if (room.RemovedFromList)
             {
-                // Remove room from cached list
                 int index = cachedRoomList.FindIndex(r => r.Name == room.Name);
                 if (index != -1)
                 {
@@ -174,22 +166,18 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
             }
             else
             {
-                // Add or update room in cached list
                 int index = cachedRoomList.FindIndex(r => r.Name == room.Name);
                 if (index == -1)
                 {
-                    // Add new room
                     cachedRoomList.Add(room);
                 }
                 else
                 {
-                    // Update existing room
                     cachedRoomList[index] = room;
                 }
             }
         }
 
-        // Refresh the room list UI
         RefreshRoomList();
     }
 
@@ -301,7 +289,6 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         if (player2Icon != null)
             StartCoroutine(DownloadAndSetIcon(player2IconUrl, player2Icon));
 
-        // Force layout rebuild
         Canvas.ForceUpdateCanvases();
         LayoutRebuilder.ForceRebuildLayoutImmediate(lobbyListParent.GetComponent<RectTransform>());
     }
@@ -328,14 +315,12 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
             yield break;
         }
 
-        // Start the download task
         Task<Texture2D> downloadTask = DownloadImageFromS3(url);
 
         while (!downloadTask.IsCompleted)
         {
             if (iconImage == null)
             {
-                // The Image has been destroyed, stop the coroutine
                 yield break;
             }
             yield return null;
@@ -376,7 +361,7 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
                 Key = new Uri(url).LocalPath.TrimStart('/')
             };
 
-            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)); // 10-second timeout
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
             using (var response = await s3Client.GetObjectAsync(getRequest, cts.Token))
             using (var stream = new MemoryStream())
@@ -430,7 +415,7 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        // Prepare initial room properties
+
         ExitGames.Client.Photon.Hashtable initialProperties = new ExitGames.Client.Photon.Hashtable();
 
         // Set the creator's data
@@ -452,21 +437,21 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         RoomOptions roomOptions = new RoomOptions
         {
             MaxPlayers = 2,
-            IsVisible = true, // Always set to true to show both public and private rooms
+            IsVisible = true,
             CustomRoomProperties = initialProperties,
             CustomRoomPropertiesForLobby = new string[] { "Password", "Player1Name", "Player1Icon", "Player2Name", "Player2Icon" }
         };
 
         PhotonNetwork.CreateRoom(lobbyName, roomOptions);
         createLobbyPanel.SetActive(false);
-        matchmakingPanel.SetActive(true); // Show the matchmaking panel again
+        matchmakingPanel.SetActive(true);
     }
 
     public void TogglePublicPrivate()
     {
         isLobbyPrivate = !isLobbyPrivate;
         publicPrivateButton.GetComponentInChildren<TMP_Text>().text = isLobbyPrivate ? "Private" : "Public";
-        passwordPanel.SetActive(isLobbyPrivate); // Show/hide password panel
+        passwordPanel.SetActive(isLobbyPrivate); 
     }
 
     public void OpenCreateLobbyPanel()
@@ -488,6 +473,9 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
 
         lobbyPanel.SetActive(true);
         startGameButton.gameObject.SetActive(PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount == 2);
+
+        GameState.WasInGameRoom = true;
+        GameState.LastRoomName = PhotonNetwork.CurrentRoom.Name;
     }
 
     public override void OnPlayerEnteredRoom(Player newPlayer)
@@ -495,7 +483,6 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         UpdateLobbyDetails();
         UpdateRoomCustomProperties();
 
-        // Refresh room list to update lobby prefabs
         RefreshRoomList();
     }
 
@@ -504,7 +491,6 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         UpdateLobbyDetails();
         UpdateRoomCustomProperties();
 
-        // Refresh room list to update lobby prefabs
         RefreshRoomList();
     }
 
@@ -521,17 +507,14 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
             UpdateRoomCustomProperties();
         }
 
-        // Refresh room list to update lobby prefabs
         RefreshRoomList();
     }
 
-    // New method to handle room property updates
     public override void OnRoomPropertiesUpdate(PhotonHashtable propertiesThatChanged)
     {
         Debug.Log("Room properties updated.");
         UpdateLobbyDetails();
 
-        // Refresh room list to update lobby prefabs
         RefreshRoomList();
     }
 
@@ -550,7 +533,6 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
                 }
                 else
                 {
-                    // Set placeholder image
                     profileIconImage.sprite = placeholderSprite;
 
                     Texture2D texture = await DownloadImageFromS3(iconUrl);
@@ -652,7 +634,6 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         playersConnectedText.text = $"{PhotonNetwork.CurrentRoom.PlayerCount}/{PhotonNetwork.CurrentRoom.MaxPlayers}";
         startGameButton.gameObject.SetActive(PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount == 2);
 
-        // Handle waiting text
         if (PhotonNetwork.CurrentRoom.PlayerCount < 2)
         {
             waitingText.gameObject.SetActive(true);
@@ -687,12 +668,10 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
 
     private void UpdateRoomCustomProperties()
     {
-        // Prepare the data to store
         ExitGames.Client.Photon.Hashtable roomProperties = new ExitGames.Client.Photon.Hashtable();
 
         Player[] players = PhotonNetwork.PlayerList;
 
-        // Loop through players and store their data
         for (int i = 0; i < players.Length; i++)
         {
             string playerNameKey = $"Player{i + 1}Name";
@@ -711,7 +690,6 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
             }
         }
 
-        // Clear data for slots not occupied
         for (int i = players.Length; i < 2; i++)
         {
             string playerNameKey = $"Player{i + 1}Name";
@@ -721,7 +699,6 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
             roomProperties[playerIconKey] = "";
         }
 
-        // Update the room properties
         PhotonNetwork.CurrentRoom.SetCustomProperties(roomProperties);
     }
 
@@ -729,6 +706,10 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     {
         Debug.Log($"Player has left the room: {PhotonNetwork.CurrentRoom.Name}");
         PhotonNetwork.LeaveRoom();
+
+        // Clear rejoin state since the player left intentionally
+        GameState.WasInGameRoom = false;
+        GameState.LastRoomName = "";
     }
 
     public override void OnLeftRoom()
@@ -743,7 +724,6 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
         playersConnectedText.text = "";
         ShowMatchmakingPanel();
 
-        // Refresh the room list
         RefreshRoomList();
     }
 
@@ -787,7 +767,6 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
     {
         string enteredPassword = joinPasswordInput.text;
 
-        // Find the room info from cached room list
         RoomInfo roomInfo = cachedRoomList.Find(r => r.Name == roomToJoin);
 
         if (roomInfo != null)
@@ -802,9 +781,7 @@ public class MatchmakingManager : MonoBehaviourPunCallbacks
             }
             else
             {
-                // Show error message
                 Debug.LogError("Incorrect password.");
-                // Optionally, display this message in the UI
             }
         }
         else

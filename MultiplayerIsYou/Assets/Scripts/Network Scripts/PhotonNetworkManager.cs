@@ -8,18 +8,18 @@ using PhotonHashtable = ExitGames.Client.Photon.Hashtable;
 public class PhotonNetworkManager : MonoBehaviourPunCallbacks
 {
     [Header("Cameras")]
-    public Camera player1Camera; // Assign Player 1 camera in the Inspector
-    public Camera player2Camera; // Assign Player 2 camera in the Inspector
+    public Camera player1Camera;
+    public Camera player2Camera; 
 
     [Header("Player Prefabs")]
-    public GameObject player1Prefab; // Assign Player 1 prefab in the Inspector (e.g., Baba)
-    public GameObject player2Prefab; // Assign Player 2 prefab in the Inspector (e.g., Lala)
+    public GameObject player1Prefab; //Baba
+    public GameObject player2Prefab; //Lala
 
     [Header("Spawn Points")]
-    public Transform player1SpawnPoint; // Assign Player 1 spawn point in the Inspector
-    public Transform player2SpawnPoint; // Assign Player 2 spawn point in the Inspector
+    public Transform player1SpawnPoint; 
+    public Transform player2SpawnPoint;
 
-    private bool hasInstantiated = false; // Flag to prevent multiple instantiations
+    private bool hasInstantiated = false; 
 
     private void Awake()
     {
@@ -105,7 +105,18 @@ public class PhotonNetworkManager : MonoBehaviourPunCallbacks
     public override void OnJoinedRoom()
     {
         Debug.Log($"[PhotonNetworkManager] Joined Room: {PhotonNetwork.CurrentRoom.Name} as Player {PhotonNetwork.LocalPlayer.ActorNumber}");
+
+        // Assign player role if needed
         AssignPlayerRoleIfNeeded();
+
+        // Load the appropriate level
+        if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("CurrentLevel", out object levelName))
+        {
+            if (SceneManager.GetActiveScene().name != (string)levelName)
+            {
+                PhotonNetwork.LoadLevel((string)levelName);
+            }
+        }
     }
 
     private void AssignPlayerRoleIfNeeded()
@@ -268,15 +279,8 @@ public class PhotonNetworkManager : MonoBehaviourPunCallbacks
 
     public void ReturnToLevelSelector()
     {
-        if (PhotonNetwork.IsMasterClient)
-        {
-            Debug.Log("[PhotonNetworkManager] Master Client initiating scene change to LevelSelector.");
             PhotonNetwork.LoadLevel("LevelSelector");
-        }
-        else
-        {
-            Debug.LogWarning("[PhotonNetworkManager] Only the Master Client can initiate scene changes.");
-        }
+
     }
 
     public void OnReturnToLevelSelectorButtonClicked()

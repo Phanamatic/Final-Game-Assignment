@@ -5,8 +5,25 @@ using Photon.Pun;
 public class Player2Controller : MonoBehaviourPun
 {
     private Vector3 moveDirection;
-    public float pushDistance = 1f; // Distance to push objects
+    public float pushDistance = 1f;
     private bool isMoving = false;
+
+    private AudioSource audioSource;
+
+    void Start()
+    {
+        if (photonView.IsMine)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+            }
+
+            audioSource.playOnAwake = false;
+            audioSource.loop = false;
+        }
+    }
 
     void Update()
     {
@@ -17,7 +34,7 @@ public class Player2Controller : MonoBehaviourPun
 
         if (PauseManager.Instance != null && PauseManager.Instance.isGamePaused)
         {
-            return; // Don't process input if the game is paused
+            return; 
         }
 
         if (gameObject.CompareTag("You2"))
@@ -56,20 +73,16 @@ public class Player2Controller : MonoBehaviourPun
 
         Vector3 targetPosition = transform.position + moveDirection;
 
-        // Snap target position to grid
         targetPosition = SnapToGrid(targetPosition);
 
-        // Check for collisions and interactions
         if (IsMovementBlocked(targetPosition))
         {
             isMoving = false;
             return;
         }
 
-        // Move the player locally
         transform.position = targetPosition;
 
-        // Synchronize movement across the network
         photonView.RPC("SyncMovePlayer", RpcTarget.Others, targetPosition);
 
         isMoving = false;
@@ -83,7 +96,6 @@ public class Player2Controller : MonoBehaviourPun
 
     bool IsMovementBlocked(Vector3 targetPosition)
     {
-        // Check for Shut objects
         Collider2D shutCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
 
         if (shutCollider != null && shutCollider.CompareTag("Shut"))
@@ -95,7 +107,6 @@ public class Player2Controller : MonoBehaviourPun
             }
         }
 
-        // Handle other collisions and pushing logic
         Collider2D hitCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
 
         if (hitCollider != null)
@@ -110,7 +121,6 @@ public class Player2Controller : MonoBehaviourPun
                 if (CanPushChain(hitCollider.gameObject, moveDirection))
                 {
                     PushObject(hitCollider.gameObject, moveDirection);
-                    // Movement handled after pushing
                 }
                 else
                 {
@@ -127,7 +137,6 @@ public class Player2Controller : MonoBehaviourPun
     {
         List<GameObject> chain = GetPushChain(obj, direction);
 
-        // Collect PhotonView IDs
         int[] viewIDs = new int[chain.Count];
         for (int i = 0; i < chain.Count; i++)
         {
@@ -142,12 +151,10 @@ public class Player2Controller : MonoBehaviourPun
             }
         }
 
-        // Move objects locally
         foreach (GameObject chainObj in chain)
         {
             Vector3 targetPosition = chainObj.transform.position + direction * pushDistance;
 
-            // Handle Shut and OpenAndPush interaction
             Collider2D shutCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
 
             if (shutCollider != null && shutCollider.CompareTag("Shut"))
@@ -164,7 +171,6 @@ public class Player2Controller : MonoBehaviourPun
             chainObj.transform.position = targetPosition;
         }
 
-        // Synchronize pushing across the network
         photonView.RPC("SyncPushObjects", RpcTarget.Others, viewIDs, direction);
     }
 
@@ -180,7 +186,6 @@ public class Player2Controller : MonoBehaviourPun
 
                 Vector3 targetPosition = chainObj.transform.position + direction * pushDistance;
 
-                // Handle Shut and OpenAndPush interaction
                 Collider2D shutCollider = Physics2D.OverlapCircle(targetPosition, 0.1f);
 
                 if (shutCollider != null && shutCollider.CompareTag("Shut"))

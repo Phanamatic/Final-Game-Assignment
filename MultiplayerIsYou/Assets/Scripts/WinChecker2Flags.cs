@@ -48,11 +48,10 @@ public class WinChecker2Flags : MonoBehaviourPun
             photonView.RPC("HandleDefeat", RpcTarget.All, touchingObjectViewID);
         }
 
-        // Check if player presses "R" to reload the scene
-        if (Input.GetKeyDown(KeyCode.R) && IsRestartEnabled())
-        {
-            ReloadScene();
-        }
+    //    if (Input.GetKeyDown(KeyCode.R) && IsRestartEnabled())
+    //    {
+    //        ReloadScene();
+      //  }
     }
 
     bool CheckOverlap(GameObject[] youObjects, GameObject[] targetObjects)
@@ -100,6 +99,15 @@ public class WinChecker2Flags : MonoBehaviourPun
     {
         winText1.gameObject.SetActive(true);
 
+        if (UISoundManager.Instance != null)
+        {
+            UISoundManager.Instance.PlayWinSound();
+        }
+        else
+        {
+            Debug.LogError("UISoundManager.Instance is null. Ensure UISoundManager is in the scene.");
+        }
+
         if (!coroutineStarted)
         {
             coroutineStarted = true;
@@ -114,6 +122,23 @@ public class WinChecker2Flags : MonoBehaviourPun
         if (touchingObjectPV != null)
         {
             touchingObjectPV.gameObject.SetActive(false);
+        }
+
+        if (UISoundManager.Instance != null)
+        {
+            UISoundManager.Instance.PlayDefeatSound();
+        }
+        else
+        {
+            Debug.LogError("UISoundManager.Instance is null. Ensure UISoundManager is in the scene.");
+        }
+
+        if (PhotonView.Find(touchingObjectViewID)?.IsMine == true)
+        {
+            if (Camera.main != null)
+            {
+                StartCoroutine(ShakeCamera(Camera.main, 0.2f, 0.1f));
+            }
         }
 
         GameObject[] remainingYou1Objects = GameObject.FindGameObjectsWithTag("You1");
@@ -147,20 +172,25 @@ public class WinChecker2Flags : MonoBehaviourPun
     void UpdateCountdownText(int countdown)
     {
         countdownText.gameObject.SetActive(true);
-        string dots = new string('.', (5 - countdown) % 4);
-        countdownText.text = $"Restarting level in {countdown}{dots}";
+        countdownText.text = $"Returning to level selector in {countdown}...";
     }
 
     [PunRPC]
     void RestartLevel()
     {
-        Time.timeScale = 1f; // Ensure time scale is reset
+        Time.timeScale = 1f;
         PhotonNetwork.LoadLevel(PhotonNetwork.CurrentRoom.CustomProperties["CurrentLevel"].ToString());
     }
 
     IEnumerator ReturnToLevelSelectorAfterDelay(float delay)
     {
-        yield return new WaitForSeconds(delay);
+        int countdown = (int)delay;
+        while (countdown > 0)
+        {
+            photonView.RPC("UpdateCountdownText", RpcTarget.All, countdown);
+            yield return new WaitForSeconds(1f);
+            countdown--;
+        }
 
         if (PhotonNetwork.IsMasterClient)
         {
@@ -176,5 +206,26 @@ public class WinChecker2Flags : MonoBehaviourPun
     bool IsRestartEnabled()
     {
         return PlayerPrefs.GetInt("RestartEnabled", 1) == 1;
+    }
+
+    IEnumerator ShakeCamera(Camera cam, float duration, float magnitude)
+    {
+        Vector3 originalPos = cam.transform.localPosition;
+
+        float elapsed = 0.0f;
+
+        while (elapsed < duration)
+        {
+            float x = Random.Range(-1f, 1f) * magnitude;
+            float y = Random.Range(-1f, 1f) * magnitude;
+
+            cam.transform.localPosition = new Vector3(originalPos.x + x, originalPos.y + y, originalPos.z);
+
+            elapsed += Time.deltaTime;
+
+            yield return null;
+        }
+
+        cam.transform.localPosition = originalPos;
     }
 }

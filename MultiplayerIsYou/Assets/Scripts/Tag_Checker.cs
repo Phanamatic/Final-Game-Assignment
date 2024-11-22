@@ -12,7 +12,6 @@ public class Tag_Checker : MonoBehaviourPun
             return;
         }
 
-        // Perform tag checks
         CheckObjectSequences("Word_Skull", "Word_Is", "Word_Defeat", "Skull", "Defeat");
         // CheckObjectSequences("Word_Star", "Word_Is", "Word_Defeat", "Star", "Defeat");
 
@@ -39,7 +38,6 @@ public class Tag_Checker : MonoBehaviourPun
         }
         else
         {
-            // Check combined conditions first
             if (KeyIsPush && KeyIsOpen)
             {
                 photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Key", "OpenAndPush");
@@ -72,7 +70,6 @@ public class Tag_Checker : MonoBehaviourPun
         }
         else
         {
-            // Check combined conditions first
             if (StarIsPush && StarIsOpen)
             {
                 photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Star", "OpenAndPush");
@@ -154,7 +151,6 @@ public class Tag_Checker : MonoBehaviourPun
         }
         else
         {
-            // At least one sequence is found; set to the appropriate tag
             if (PillarIsPush && PillarIsOpen)
             {
                 photonView.RPC("SyncSetParentTagsForAll", RpcTarget.All, true, "Pillar", "OpenAndPush");
@@ -346,13 +342,13 @@ public class Tag_Checker : MonoBehaviourPun
                              IsVerticallyAdjacent(middle.transform.position, last.transform.position)))
                         {
                             Debug.Log($"Sequence found: {first.tag} - {middle.tag} - {last.tag}");
-                            return true; // Sequence found
+                            return true;
                         }
                     }
                 }
             }
         }
-        return false; // No sequence found
+        return false; 
     }
 
     bool IsHorizontallyAdjacent(Vector3 pos1, Vector3 pos2)

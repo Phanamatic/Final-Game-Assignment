@@ -30,7 +30,6 @@ public class LevelSelectorManager : MonoBehaviour
         }
         else
         {
-            // Assign OnClick listeners to each button
             level1Button.onClick.AddListener(() => OnLevelButtonClicked("Eden_Test_1"));
             level2Button.onClick.AddListener(() => OnLevelButtonClicked("Eden_Test_2"));
             level3Button.onClick.AddListener(() => OnLevelButtonClicked("Eden_Test_3"));
@@ -63,7 +62,6 @@ public class LevelSelectorManager : MonoBehaviour
         }
         else
         {
-            // If not connected to Photon, load the scene locally
             UnityEngine.SceneManagement.SceneManager.LoadScene(sceneName);
         }
     }

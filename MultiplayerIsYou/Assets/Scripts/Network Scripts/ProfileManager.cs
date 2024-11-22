@@ -8,7 +8,6 @@ using Photon.Realtime;
 
 public class ProfileManager : MonoBehaviourPunCallbacks
 {
-    // UI References
     public GameObject profilePanel;
     public GameObject menuPanel;
     public GameObject matchmakingPanel;

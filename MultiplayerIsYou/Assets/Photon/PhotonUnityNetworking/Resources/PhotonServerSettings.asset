@@ -16,10 +16,10 @@ MonoBehaviour:
     AppIdRealtime: f88a0cff-5d7a-4877-9127-7e13563f2e67
     AppIdFusion: 
     AppIdChat: 
-    AppIdVoice: 
+    AppIdVoice: ef7e423b-0672-43b8-ba5a-ccfaa210a2b3
     AppVersion: 
     UseNameServer: 1
-    FixedRegion: 
+    FixedRegion: eu
     Server: 
     Port: 0
     ProxyServer: 
@@ -27,55 +27,33 @@ MonoBehaviour:
     EnableProtocolFallback: 1
     AuthMode: 0
     EnableLobbyStatistics: 0
-    NetworkLogging: 1
-  DevRegion: za
+    NetworkLogging: 0
+  DevRegion: eu
   PunLogging: 0
   EnableSupportLogger: 0
   RunInBackground: 1
   StartInOfflineMode: 0
   RpcList:
+  - CantHearYou
+  - ChangeColour
   - ClickRpc
   - DestroyRpc
   - DestroySpaceship
-  - Fire
-  - RespawnSpaceship
-  - AssignOwnership
   - DisplayWinTexts
+  - Fire
   - HandleDefeat
-  - SetParentTagsForAll
-  - RPC_CheckBabaSequences
-  - RPC_CheckLalaSequences
-  - RPC_CheckObjectSequences
-  - RPC_CheckRockSequences
-  - RPC_CheckWallSequences
-  - RPC_MoveObject
-  - RPC_CheckDoorSequences
-  - RPC_CheckKeySequences
-  - RPC_CheckPillarSequences
-  - RPC_DestroyObject
-  - RPC_CheckFlagSequences
-  - RPC_SetParentTag
-  - DisplayDefeatTextsRPC
-  - DisplayWinTextsRPC
-  - HandleDefeatRPC
-  - MovePlayerRPC
-  - PushObjectRPC
-  - ReloadSceneRPC
-  - SetParentTagsForAllRPC
-  - SetTextsActiveRPC
+  - HeresWhy
+  - PauseGame
+  - RequestLoadLevelSelector
+  - RequestRestartLevel
+  - ResetGameStates
+  - RespawnSpaceship
+  - RestartLevel
+  - ResumeGame
   - SyncMovePlayer
   - SyncPushObjects
   - SyncSetParentTagsForAll
-  - SyncMovePlayerAndPushObjects
-  - PauseGame
-  - PlayerReadyToResume
-  - RestartLevel
-  - ResumeGame
   - UpdateCountdownText
-  - ResetGameStates
-  - RequestRestartLevel
-  - RequestLoadLevelSelector
-  - ResetGameStatesNormal
   DisableAutoOpenWizard: 1
-  ShowSettings: 0
+  ShowSettings: 1
   DevRegionSetOnce: 1

@@ -7,6 +7,10 @@ using System.Collections;
 using ExitGames.Client.Photon;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
 using UnityEngine.SceneManagement;
+using Photon.Realtime;
+using Photon.Voice.Unity;
+using Photon.Voice.PUN;
+using UnityEngine.Audio; // Added for AudioMixer
 
 public class PauseManager : MonoBehaviourPunCallbacks
 {
@@ -15,7 +19,7 @@ public class PauseManager : MonoBehaviourPunCallbacks
     [Header("UI Panels")]
     public GameObject pauseMenuPanel;
     public GameObject settingsPanel;
-    public GameObject confirmMenuPanel; // For the confirmation dialog
+    public GameObject confirmMenuPanel; 
 
     [Header("Pause Menu Elements")]
     public TMP_Text pauseNotificationText;
@@ -26,50 +30,57 @@ public class PauseManager : MonoBehaviourPunCallbacks
     public Button menuButton;
 
     [Header("Settings Panel Elements")]
-    public Slider volumeSlider;
+    public Slider masterVolumeSlider;      
+    public Slider voiceChatVolumeSlider;   
+    public Slider myVoiceVolumeSlider;     
+    public Toggle muteToggle;              
     public Toggle restartToggle;
     public Button closeSettingsButton;
 
+    [Header("New Settings Panel Elements")]
+    public Slider voiceOutputVolumeSlider;  
+    public Toggle micMuteToggle;           
+
     [Header("Confirmation Panel Elements")]
-    public TMP_Text disconnectingText; // Assign in the inspector
+    public TMP_Text disconnectingText; 
     public Button confirmButton;
     public Button cancelButton;
 
     [Header("Additional UI Elements")]
     public TMP_Text changeLevelHoverText;
 
-    public bool isGamePaused = false; // Made public for access in other scripts
+    [Header("Audio Mixer")]
+    public AudioMixer voiceAudioMixer;
+
+    public bool isGamePaused = false; 
 
     private Coroutine disconnectingCoroutine;
 
-    void Awake()
-{
-    // Singleton pattern to ensure only one instance exists
-    if (Instance == null)
-        Instance = this;
-    else
-        Destroy(gameObject);
+    private Recorder recorder;
 
-    // Enable automatic scene synchronization
-    PhotonNetwork.AutomaticallySyncScene = true;
-}
+    void Awake()
+    {
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
+
+        PhotonNetwork.AutomaticallySyncScene = true;
+    }
 
     void Start()
     {
-        // Check if photonView is valid
         if (photonView == null)
         {
             Debug.LogError("photonView is null in PauseManager. Please attach a PhotonView component to the GameObject.");
         }
 
-        // Initially hide panels and texts
         pauseMenuPanel.SetActive(false);
         settingsPanel.SetActive(false);
         confirmMenuPanel.SetActive(false);
         changeLevelHoverText.gameObject.SetActive(false);
         disconnectingText.gameObject.SetActive(false);
 
-        // Add button listeners
         resumeButton.onClick.AddListener(OnResumeButtonClicked);
         settingsButton.onClick.AddListener(OnSettingsButtonClicked);
         restartLevelButton.onClick.AddListener(OnRestartLevelButtonClicked);
@@ -81,7 +92,6 @@ public class PauseManager : MonoBehaviourPunCallbacks
         confirmButton.onClick.AddListener(OnConfirmButtonClicked);
         cancelButton.onClick.AddListener(OnCancelButtonClicked);
 
-        // Add hover listeners to the "Change Level" button
         EventTrigger trigger = loadLevelSelectorButton.gameObject.AddComponent<EventTrigger>();
 
         EventTrigger.Entry entryEnter = new EventTrigger.Entry();
@@ -93,6 +103,111 @@ public class PauseManager : MonoBehaviourPunCallbacks
         entryExit.eventID = EventTriggerType.PointerExit;
         entryExit.callback.AddListener((eventData) => { OnLoadLevelButtonHoverExit(); });
         trigger.triggers.Add(entryExit);
+
+        InitializeVolumeSliders();
+
+        InitializeNewSettingsElements();
+
+        InitializeRecorder();
+    }
+
+    void InitializeRecorder()
+    {
+        GameObject localPlayer = PhotonNetwork.LocalPlayer.TagObject as GameObject;
+
+        if (localPlayer != null)
+        {
+            PhotonVoiceView voiceView = localPlayer.GetComponent<PhotonVoiceView>();
+            if (voiceView != null)
+            {
+                recorder = voiceView.RecorderInUse;
+            }
+            else
+            {
+                Debug.LogError("PhotonVoiceView is not attached to the local player.");
+            }
+        }
+        else
+        {
+            Debug.LogError("Local player GameObject is not set in PhotonNetwork.LocalPlayer.TagObject.");
+        }
+
+        if (recorder == null)
+        {
+            recorder = PunVoiceClient.Instance.PrimaryRecorder;
+            if (recorder == null)
+            {
+                Debug.LogError("Recorder not found. Please ensure a Recorder component is attached to the local player or set as the Primary Recorder in PunVoiceClient.");
+            }
+        }
+    }
+
+    void InitializeVolumeSliders()
+    {
+        if (masterVolumeSlider != null)
+        {
+            masterVolumeSlider.value = AudioListener.volume;
+            masterVolumeSlider.onValueChanged.AddListener(OnMasterVolumeChanged);
+        }
+        else
+        {
+            Debug.LogError("MasterVolumeSlider is not assigned in the Inspector.");
+        }
+
+        if (voiceChatVolumeSlider != null)
+        {
+            voiceChatVolumeSlider.value = 1f; 
+            voiceChatVolumeSlider.onValueChanged.AddListener(OnVoiceChatVolumeChanged);
+        }
+        else
+        {
+            Debug.LogError("VoiceChatVolumeSlider is not assigned in the Inspector.");
+        }
+
+        if (myVoiceVolumeSlider != null)
+        {
+            myVoiceVolumeSlider.minValue = 0f;
+            myVoiceVolumeSlider.maxValue = 1f;
+            myVoiceVolumeSlider.value = 1f;
+            myVoiceVolumeSlider.onValueChanged.AddListener(OnMyVoiceVolumeChanged);
+        }
+        else
+        {
+            Debug.LogError("MyVoiceVolumeSlider is not assigned in the Inspector.");
+        }
+
+        if (muteToggle != null)
+        {
+            muteToggle.isOn = false;
+            muteToggle.onValueChanged.AddListener(OnMuteToggleChanged);
+        }
+        else
+        {
+            Debug.LogError("MuteToggle is not assigned in the Inspector.");
+        }
+    }
+
+    void InitializeNewSettingsElements()
+    {
+        if (voiceOutputVolumeSlider != null)
+        {
+            voiceOutputVolumeSlider.value = 1f;
+            voiceOutputVolumeSlider.onValueChanged.AddListener(OnVoiceOutputVolumeChanged);
+        }
+        else
+        {
+            Debug.LogError("VoiceOutputVolumeSlider is not assigned in the Inspector.");
+        }
+
+        if (micMuteToggle != null)
+        {
+            micMuteToggle.isOn = false;
+            micMuteToggle.onValueChanged.AddListener(OnMicMuteToggleChanged);
+        }
+        else
+        {
+            Debug.LogError("MicMuteToggle is not assigned in the Inspector.");
+        }
     }
 
     void Update()
@@ -101,12 +216,10 @@ public class PauseManager : MonoBehaviourPunCallbacks
         {
             if (!isGamePaused)
             {
-                // Player wants to pause the game
                 photonView.RPC("PauseGame", RpcTarget.All, PhotonNetwork.NickName);
             }
             else
             {
-                // Player wants to resume the game
                 OnResumeButtonClicked();
             }
         }
@@ -116,14 +229,12 @@ public class PauseManager : MonoBehaviourPunCallbacks
     public void PauseGame(string pausingPlayerName)
     {
         isGamePaused = true;
-        // Game pauses by showing the pause panel for all players
         pauseMenuPanel.SetActive(true);
         pauseNotificationText.text = $"{pausingPlayerName} paused the game!";
     }
 
     public void OnResumeButtonClicked()
     {
-        // Any player can resume the game for all players
         photonView.RPC("ResumeGame", RpcTarget.All);
     }
 
@@ -131,7 +242,6 @@ public class PauseManager : MonoBehaviourPunCallbacks
     public void ResumeGame()
     {
         isGamePaused = false;
-        // Game unpauses by hiding the pause panel for all players
         pauseMenuPanel.SetActive(false);
         settingsPanel.SetActive(false);
     }
@@ -148,41 +258,35 @@ public class PauseManager : MonoBehaviourPunCallbacks
 
     public void OnRestartLevelButtonClicked()
     {
-        // Any player can request to restart the level
         photonView.RPC("RequestRestartLevel", RpcTarget.MasterClient);
     }
 
     [PunRPC]
-void RequestRestartLevel()
-{
-    if (PhotonNetwork.IsMasterClient)
+    void RequestRestartLevel()
     {
-        Debug.Log("MasterClient is requesting to restart the level.");
+        if (PhotonNetwork.IsMasterClient)
+        {
+            Debug.Log("MasterClient is requesting to restart the level.");
 
-        // Unpause the game and reset states for all clients
-        photonView.RPC("ResetGameStates", RpcTarget.All);
+            photonView.RPC("ResetGameStates", RpcTarget.All);
 
-        // Then load the current level
-        string currentLevel = SceneManager.GetActiveScene().name;
-        Debug.Log($"Loading level: {currentLevel}");
-        PhotonNetwork.LoadLevel(currentLevel);
+            string currentLevel = SceneManager.GetActiveScene().name;
+            Debug.Log($"Loading level: {currentLevel}");
+            PhotonNetwork.LoadLevel(currentLevel);
+        }
     }
-}
-
 
     [PunRPC]
-public void ResetGameStates()
-{
-    Debug.Log("Resetting game states for all clients.");
-    // Reset game states
-    isGamePaused = false;
-    pauseMenuPanel.SetActive(false);
-    settingsPanel.SetActive(false);
-}
+    public void ResetGameStates()
+    {
+        Debug.Log("Resetting game states for all clients.");
+        isGamePaused = false;
+        pauseMenuPanel.SetActive(false);
+        settingsPanel.SetActive(false);
+    }
 
     public void OnLoadLevelSelectorButtonClicked()
     {
-        // Any player can request to load the level selector
         photonView.RPC("RequestLoadLevelSelector", RpcTarget.MasterClient);
     }
 
@@ -191,10 +295,8 @@ public void ResetGameStates()
     {
         if (PhotonNetwork.IsMasterClient)
         {
-            // Unpause the game and reset states for all clients
             photonView.RPC("ResetGameStates", RpcTarget.All);
 
-            // Then load the LevelSelector scene
             PhotonNetwork.LoadLevel("LevelSelector");
         }
     }
@@ -206,15 +308,12 @@ public void ResetGameStates()
 
     public void OnConfirmButtonClicked()
     {
-        // Show the disconnecting text
         disconnectingText.gameObject.SetActive(true);
 
-        // Start the coroutine to animate the dots
         if (disconnectingCoroutine != null)
             StopCoroutine(disconnectingCoroutine);
 
         disconnectingCoroutine = StartCoroutine(AnimateDisconnectingText());
-
         DisconnectAndReturnToMenu();
     }
 
@@ -244,10 +343,9 @@ public void ResetGameStates()
             disconnectingCoroutine = null;
         }
 
-        // Set the flag to indicate we are returning from the game
         GameState.IsReturningFromGame = true;
 
-        SceneManager.LoadScene("Menu_Scene"); // Replace with your main menu scene name
+        SceneManager.LoadScene("Menu_Scene");
     }
 
     public void OnCancelButtonClicked()
@@ -257,7 +355,6 @@ public void ResetGameStates()
 
     public void OnLoadLevelButtonHoverEnter()
     {
-        // Since both players can change the level, we hide the hover text
         changeLevelHoverText.gameObject.SetActive(false);
     }
 
@@ -268,10 +365,111 @@ public void ResetGameStates()
 
     public void QuitGame()
     {
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
-    #else
-            Application.Quit();
-    #endif
+#else
+        Application.Quit();
+#endif
+    }
+
+    public override void OnDisconnected(DisconnectCause cause)
+    {
+        Debug.LogWarning($"Disconnected from Photon: {cause}");
+
+        if (PhotonNetwork.InRoom)
+        {
+            GameState.WasInGameRoom = true;
+            GameState.LastRoomName = PhotonNetwork.CurrentRoom.Name;
+        }
+    }
+
+
+    public void OnMasterVolumeChanged(float value)
+    {
+        AudioListener.volume = value;
+    }
+
+    public void OnVoiceChatVolumeChanged(float value)
+    {
+        var speakers = FindObjectsOfType<Speaker>();
+        foreach (var speaker in speakers)
+        {
+            if (speaker != null && speaker.IsLinked)
+            {
+                AudioSource audioSource = speaker.GetComponent<AudioSource>();
+                if (audioSource != null)
+                {
+                    audioSource.volume = value;
+                }
+                else
+                {
+                    Debug.LogError("AudioSource component not found on Speaker.");
+                }
+            }
+        }
+
+        Debug.Log($"Voice chat playback volume set to: {value}");
+    }
+
+    public void OnMyVoiceVolumeChanged(float value)
+    {
+        if (voiceAudioMixer != null)
+        {
+            float mixerVolume = Mathf.Log10(value) * 20f;
+            voiceAudioMixer.SetFloat("VoiceGroupVolume", mixerVolume);
+            Debug.Log($"My voice volume set to: {value}");
+        }
+        else
+        {
+            Debug.LogError("VoiceAudioMixer is not assigned in the Inspector.");
+        }
+    }
+
+    public void OnMuteToggleChanged(bool isMuted)
+    {
+        if (recorder != null)
+        {
+            recorder.TransmitEnabled = !isMuted;
+            Debug.Log($"Mute Myself set to: {isMuted}");
+        }
+        else
+        {
+            Debug.LogError("Recorder is not initialized.");
+        }
+    }
+
+    public void OnVoiceOutputVolumeChanged(float value)
+    {
+        var speakers = FindObjectsOfType<Speaker>();
+        foreach (var speaker in speakers)
+        {
+            if (speaker != null && speaker.IsLinked)
+            {
+                AudioSource audioSource = speaker.GetComponent<AudioSource>();
+                if (audioSource != null)
+                {
+                    audioSource.volume = value;
+                }
+                else
+                {
+                    Debug.LogError("AudioSource component not found on Speaker.");
+                }
+            }
+        }
+
+        Debug.Log($"Voice output volume set to: {value}");
+    }
+
+    public void OnMicMuteToggleChanged(bool isMuted)
+    {
+        if (recorder != null)
+        {
+            recorder.TransmitEnabled = !isMuted;
+            Debug.Log($"Microphone Muted: {isMuted}");
+        }
+        else
+        {
+            Debug.LogError("Recorder is not initialized.");
+        }
     }
 }

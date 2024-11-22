@@ -46,7 +46,6 @@ public class WinChecker : MonoBehaviourPun
             photonView.RPC("HandleDefeat", RpcTarget.All, touchingObjectViewID);
         }
 
-        // Check if player presses "R" to reload the scene
         if (Input.GetKeyDown(KeyCode.R) && IsRestartEnabled())
         {
             ReloadScene();
@@ -98,6 +97,15 @@ public class WinChecker : MonoBehaviourPun
     {
         winText1.gameObject.SetActive(true);
 
+        if (UISoundManager.Instance != null)
+        {
+            UISoundManager.Instance.PlayWinSound();
+        }
+        else
+        {
+            Debug.LogError("UISoundManager.Instance is null. Ensure UISoundManager is in the scene.");
+        }
+
         if (!coroutineStarted)
         {
             coroutineStarted = true;
@@ -112,6 +120,15 @@ public class WinChecker : MonoBehaviourPun
         if (touchingObjectPV != null)
         {
             touchingObjectPV.gameObject.SetActive(false);
+        }
+
+        if (UISoundManager.Instance != null)
+        {
+            UISoundManager.Instance.PlayDefeatSound();
+        }
+        else
+        {
+            Debug.LogError("UISoundManager.Instance is null. Ensure UISoundManager is in the scene.");
         }
 
         GameObject[] remainingYou1Objects = GameObject.FindGameObjectsWithTag("You1");
@@ -145,14 +162,13 @@ public class WinChecker : MonoBehaviourPun
     void UpdateCountdownText(int countdown)
     {
         countdownText.gameObject.SetActive(true);
-        string dots = new string('.', (5 - countdown) % 4);
-        countdownText.text = $"Restarting level in {countdown}{dots}";
+        countdownText.text = $"Returning to level selector in {countdown}...";
     }
 
     [PunRPC]
     void RestartLevel()
     {
-        Time.timeScale = 1f; // Ensure time scale is reset
+        Time.timeScale = 1f;
         PhotonNetwork.LoadLevel(PhotonNetwork.CurrentRoom.CustomProperties["CurrentLevel"].ToString());
     }
 

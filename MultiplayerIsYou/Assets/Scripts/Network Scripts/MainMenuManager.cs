@@ -15,7 +15,8 @@ using ExitGames.Client.Photon;
 using System.Collections.Generic;
 using dotenv.net;
 using Amazon.Runtime;
-using System.Net; // For ServicePointManager
+using System.Net; 
+using Photon.Realtime;
 
 public class MainMenuManager : MonoBehaviourPunCallbacks
 {
@@ -25,18 +26,17 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
     public GameObject profilePanel;
     public GameObject accountPanel;
 
-    // New Rejoin Panel
     [Header("Rejoin Panel")]
     public GameObject rejoinPanel;
     public Button rejoinButton;
     public Button cancelRejoinButton;
 
     [Header("Profile Menu Elements")]
-    public Button[] profileIconButtons; // Assign the preset icon buttons here
-    public Button uploadIconButton;    // Assign the upload button here
-    public TMP_InputField usernameInput; // Assign the username input field here
-    public Button saveButton;         // Assign the save button here
-    public Image selectedIconDisplay; // Display for the selected icon
+    public Button[] profileIconButtons; 
+    public Button uploadIconButton;   
+    public TMP_InputField usernameInput;
+    public Button saveButton;        
+    public Image selectedIconDisplay; 
     private Sprite selectedIcon;
 
     [Header("Player Info")]
@@ -48,25 +48,24 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
 
     private Dictionary<string, Texture2D> iconCache = new Dictionary<string, Texture2D>();
 
+    private bool isRejoining = false;
+
     private void Awake()
     {
-        // Ensure TLS 1.2 is used
         ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
         // Load environment variables
         string envFilePath = "";
 
-        // Ensure PhotonNetwork automatically syncs scenes before connecting
         PhotonNetwork.AutomaticallySyncScene = true;
 
-        // Now proceed to connect to Photon if not already connected
         if (!PhotonNetwork.IsConnected)
         {
             PhotonNetwork.ConnectUsingSettings();
         }
 
 #if UNITY_EDITOR
-        // In the Unity Editor, the project root is one level up from Application.dataPath
+        // In the Unity Editor, the project root
         envFilePath = Path.Combine(Application.dataPath, "..", ".env");
 #else
         // In builds, include the .env file in StreamingAssets
@@ -96,14 +95,10 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
 
     private void Start()
     {
-        // Check if the player was previously in a game room
         if (GameState.WasInGameRoom && !string.IsNullOrEmpty(GameState.LastRoomName))
         {
-            // Show the rejoin panel
             rejoinPanel.SetActive(true);
-            menuPanel.SetActive(false);
 
-            // Assign button listeners
             rejoinButton.onClick.AddListener(OnRejoinButtonClicked);
             cancelRejoinButton.onClick.AddListener(OnCancelRejoinButtonClicked);
         }
@@ -111,7 +106,6 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
         {
             // Normal startup
             rejoinPanel.SetActive(false);
-            menuPanel.SetActive(true);
         }
 
         UpdateMenuUI();
@@ -121,6 +115,7 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
     {
         if (PhotonNetwork.IsConnected)
         {
+            isRejoining = true; 
             // Attempt to rejoin the room
             PhotonNetwork.RejoinRoom(GameState.LastRoomName);
         }
@@ -152,7 +147,7 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
         }
         else
         {
-            // Additional logic if needed
+            // no time to add extra logic :(
         }
     }
 
@@ -160,42 +155,35 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
     {
         Debug.LogError($"Failed to rejoin room: {message}");
 
-        // Room might have been closed; reset game state
         GameState.WasInGameRoom = false;
         GameState.LastRoomName = "";
 
-        // Show the main menu
         rejoinPanel.SetActive(false);
         menuPanel.SetActive(true);
     }
 
     public override void OnJoinedRoom()
     {
-        Debug.Log("Rejoined the room successfully.");
-
-        // Reset the rejoin state
-        GameState.WasInGameRoom = false;
-        GameState.LastRoomName = "";
-
-        // Load the game scene
-        if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("CurrentLevel", out object levelName))
+        if (isRejoining)
         {
-            PhotonNetwork.LoadLevel((string)levelName);
-        }
-        else
-        {
-            // Fallback to default scene
-            PhotonNetwork.LoadLevel("LevelSelector");
+            Debug.Log("Rejoined the room successfully.");
+
+            GameState.WasInGameRoom = false;
+            GameState.LastRoomName = "";
+            isRejoining = false; 
+
+            if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("CurrentLevel", out object levelName))
+            {
+                PhotonNetwork.LoadLevel((string)levelName);
+            }
+            else
+            {
+                PhotonNetwork.LoadLevel("LevelSelector");
+            }
         }
     }
 
-    public override void OnLeftRoom()
-    {
-        // Set a flag to indicate that we are returning from the game
-        GameState.IsReturningFromGame = true;
-    }
-
-    public override void OnPlayerPropertiesUpdate(Photon.Realtime.Player targetPlayer, ExitGames.Client.Photon.Hashtable changedProps)
+    public override void OnPlayerPropertiesUpdate(Player targetPlayer, ExitGames.Client.Photon.Hashtable changedProps)
     {
         if (targetPlayer.IsLocal)
         {
@@ -207,7 +195,6 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
     {
         Debug.Log("UpdateMenuUI called.");
 
-        // Check and update the username
         if (PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey("Username"))
         {
             usernameText.text = PhotonNetwork.LocalPlayer.CustomProperties["Username"].ToString();
@@ -219,7 +206,6 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
             Debug.Log("Username set to Guest.");
         }
 
-        // Check and update the profile icon
         if (PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey("Icon"))
         {
             string url = PhotonNetwork.LocalPlayer.CustomProperties["Icon"].ToString();
@@ -253,7 +239,7 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
         }
         else
         {
-            profileIconImage.sprite = null; // Optionally, set a default icon here
+            profileIconImage.sprite = null;
             Debug.LogWarning("Icon property not found.");
         }
     }
@@ -301,7 +287,6 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
             if (texture == null)
             {
                 Debug.LogError("Failed to load texture from selected file.");
-                // Show error message to user (implement UI feedback as needed)
                 return;
             }
 
@@ -315,7 +300,6 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
     {
         string iconUrl = null;
 
-        // Update icon
         if (selectedIcon != null)
         {
             string filePath = await SaveSpriteToLocal(selectedIcon);
@@ -323,7 +307,7 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
             UpdateIconInPhotonAndPlayFab(iconUrl);
         }
 
-        // Update username if changed
+        // Update username if changed (removed username changing)
         if (!string.IsNullOrEmpty(usernameInput.text))
         {
             PhotonNetwork.NickName = usernameInput.text;
@@ -351,11 +335,9 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
                 { "Username", usernameInput.text }
             });
 
-            // Update the matchmaking UI
             FindObjectOfType<MatchmakingManager>()?.UpdateUsernameText();
         }
 
-        // Ensure UI reflects updated data
         UpdateMenuUI();
 
         profilePanel.SetActive(false);
@@ -437,15 +419,12 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
             // Read the file into a byte array
             byte[] fileData = File.ReadAllBytes(filePath);
 
-            // Optionally, check file size (e.g., limit to 5 MB)
             if (fileData.Length > 5 * 1024 * 1024) // 5 MB limit
             {
                 Debug.LogError("File is too large to upload. Please select an image less than 5 MB.");
-                // Show error message to user (implement UI feedback as needed)
                 return null;
             }
 
-            // Create a memory stream from the byte array
             using (var ms = new MemoryStream(fileData))
             {
                 var putRequest = new PutObjectRequest
@@ -484,7 +463,6 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
             });
             Debug.Log("Icon updated in Photon.");
 
-            // Manually trigger the property update (if necessary)
             OnPlayerPropertiesUpdate(PhotonNetwork.LocalPlayer, new ExitGames.Client.Photon.Hashtable { { "Icon", iconUrl } });
 
             // Update in PlayFab
@@ -540,7 +518,7 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
     {
         if (originalTexture.isReadable)
         {
-            return originalTexture; // Return if the texture is already readable
+            return originalTexture; 
         }
 
         try

@@ -3,7 +3,7 @@ using Photon.Realtime;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using SFB; // For file browser
+using SFB; 
 using PlayFab;
 using PlayFab.ClientModels;
 using System.Collections;
@@ -17,7 +17,7 @@ using System.Threading.Tasks;
 using System;
 using dotenv.net;
 using Amazon.Runtime;
-using System.Net; // For ServicePointManager
+using System.Net; 
 
 // Add this alias to resolve ambiguity
 using PhotonHashtable = ExitGames.Client.Photon.Hashtable;
@@ -37,8 +37,8 @@ public class LoginManager : MonoBehaviourPunCallbacks
     public TMP_InputField createPasswordInput;
     public GameObject createErrorPanel;
     public TextMeshProUGUI createErrorText;
-    public GameObject profileIconsPanel; // Parent of preset icon buttons
-    public Image selectedIconDisplay;   // Image for showing selected icon
+    public GameObject profileIconsPanel; 
+    public Image selectedIconDisplay; 
     public TextMeshProUGUI fileNameText;
     public TextMeshProUGUI usernamePreviewText;
     private Sprite selectedIcon;
@@ -47,24 +47,26 @@ public class LoginManager : MonoBehaviourPunCallbacks
     public Button loginButton;
     public Button signupButton;
 
+    // Removed Force Logout Panel fields  (Allowed for multi device loggins)
+
     // AWS S3 Configuration
     private const string bucketName = "multiplayerisyou";
     private AmazonS3Client s3Client;
 
     private bool needToSetPhotonProperties = false;
     private string pendingUsername;
+    private string pendingPassword;
     private string pendingIconUrl;
 
     private void Awake()
     {
-        // Ensure TLS 1.2 is used
         ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
         // Load environment variables
         string envFilePath = "";
 
 #if UNITY_EDITOR
-        // In the Unity Editor, the project root is one level up from Application.dataPath
+        // In the Unity Editor, the project root 
         envFilePath = Path.Combine(Application.dataPath, "..", ".env");
 #else
         // In builds, include the .env file in StreamingAssets
@@ -95,6 +97,8 @@ public class LoginManager : MonoBehaviourPunCallbacks
     private void Start()
     {
         createUsernameInput.onValueChanged.AddListener(UpdateUsernamePreview);
+
+        // Removed listeners for force logout buttons
     }
 
     public void Login()
@@ -118,14 +122,22 @@ public class LoginManager : MonoBehaviourPunCallbacks
             return;
         }
 
+        pendingUsername = username;
+        pendingPassword = password;
+
         loginButton.interactable = false;
         errorText.color = Color.white;
         StartCoroutine(AnimateLoadingText(errorText, "Logging in"));
 
+        AttemptLogin();
+    }
+
+    private void AttemptLogin()
+    {
         var loginRequest = new LoginWithPlayFabRequest
         {
-            Username = username,
-            Password = password,
+            Username = pendingUsername,
+            Password = pendingPassword,
             InfoRequestParameters = new GetPlayerCombinedInfoRequestParams
             {
                 GetUserData = true
@@ -134,47 +146,17 @@ public class LoginManager : MonoBehaviourPunCallbacks
 
         PlayFabClientAPI.LoginWithPlayFab(loginRequest, result =>
         {
-            // After login success, check if user is already logged in
-            if (result.InfoResultPayload.UserData != null && result.InfoResultPayload.UserData.ContainsKey("IsLoggedIn") && result.InfoResultPayload.UserData["IsLoggedIn"].Value == "true")
+            PhotonNetwork.NickName = pendingUsername;
+
+            LoadUserDataAndSyncToPhoton(() =>
             {
-                errorText.color = Color.red;
-                errorText.text = "User is already logged in on another device.";
-                errorPanel.SetActive(true);
-                PlayFabClientAPI.ForgetAllCredentials();
+                errorPanel.SetActive(false);
+                AccountPanel.SetActive(false);
+                menuPanel.SetActive(true);
                 loginButton.interactable = true;
                 StopAllCoroutines();
-            }
-            else
-            {
-                // Set IsLoggedIn to true
-                var updateDataRequest = new UpdateUserDataRequest
-                {
-                    Data = new Dictionary<string, string> { { "IsLoggedIn", "true" } }
-                };
-                PlayFabClientAPI.UpdateUserData(updateDataRequest, updateResult =>
-                {
-                    // Proceed with loading user data
-                    PhotonNetwork.NickName = username;
-
-                    LoadUserDataAndSyncToPhoton(() =>
-                    {
-                        errorPanel.SetActive(false);
-                        AccountPanel.SetActive(false);
-                        menuPanel.SetActive(true);
-                        loginButton.interactable = true;
-                        StopAllCoroutines();
-                        Debug.Log("Menu panel activated successfully.");
-                    });
-                }, updateError =>
-                {
-                    // Handle error
-                    errorText.color = Color.red;
-                    errorText.text = "Failed to update user data.";
-                    errorPanel.SetActive(true);
-                    loginButton.interactable = true;
-                    StopAllCoroutines();
-                });
-            }
+                Debug.Log("Menu panel activated successfully.");
+            });
         }, error =>
         {
             Debug.LogError($"Login failed: {error.ErrorMessage}");
@@ -185,6 +167,8 @@ public class LoginManager : MonoBehaviourPunCallbacks
             StopAllCoroutines();
         });
     }
+
+    // Removed OnForceLogoutButtonClicked and OnCancelForceLogoutButtonClicked methods
 
     public void CreateAccount()
     {
@@ -248,7 +232,7 @@ public class LoginManager : MonoBehaviourPunCallbacks
                         throw new Exception("Failed to upload image to S3.");
                     }
 
-                    SaveUserData(username, username, s3Url); // Save both Username and NewUsername
+                    SaveUserData(username, username, s3Url); // Save both Username and NewUsername (Removed this system cause playfab doesnt allow)
                     PhotonNetwork.NickName = username;
 
                     pendingUsername = username;
@@ -323,7 +307,6 @@ public class LoginManager : MonoBehaviourPunCallbacks
             string path = paths[0];
             Debug.Log($"Selected file path: {path}");
 
-            // Display the file name in the UI
             fileNameText.text = Path.GetFileName(path);
 
             Texture2D texture = LoadTexture(path);
@@ -356,7 +339,6 @@ public class LoginManager : MonoBehaviourPunCallbacks
             // Read the file into a byte array
             byte[] fileData = File.ReadAllBytes(filePath);
 
-            // Optionally, check file size (e.g., limit to 5 MB)
             if (fileData.Length > 5 * 1024 * 1024) // 5 MB limit
             {
                 Debug.LogError("File is too large to upload. Please select an image less than 5 MB.");
@@ -434,8 +416,8 @@ public class LoginManager : MonoBehaviourPunCallbacks
             {
                 { "Username", username },
                 { "NewUsername", newUsername },
-                { "ProfilePictureUrl", s3Url },
-                { "IsLoggedIn", "true" }
+                { "ProfilePictureUrl", s3Url }
+                // Removed "IsLoggedIn" from user data
             }
         };
 
@@ -585,7 +567,7 @@ public class LoginManager : MonoBehaviourPunCallbacks
     {
         if (originalTexture.isReadable)
         {
-            return originalTexture; // Return if the texture is already readable
+            return originalTexture; 
         }
 
         try
@@ -635,13 +617,5 @@ public class LoginManager : MonoBehaviourPunCallbacks
         }
     }
 
-    private void OnApplicationQuit()
-    {
-        // Set IsLoggedIn to false
-        var updateDataRequest = new UpdateUserDataRequest
-        {
-            Data = new Dictionary<string, string> { { "IsLoggedIn", "false" } }
-        };
-        PlayFabClientAPI.UpdateUserData(updateDataRequest, null, null);
-    }
+    // Removed OnApplicationQuit method
 }
